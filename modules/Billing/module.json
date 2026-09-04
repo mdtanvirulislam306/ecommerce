@@ -1,0 +1,8 @@
+{
+  "name": "Billing",
+  "code": "billing",
+  "version": "1.0.0",
+  "description": "Plans, subscriptions, and module marketplace gates",
+  "is_core": true,
+  "dependencies": []
+}

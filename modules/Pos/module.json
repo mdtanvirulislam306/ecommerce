@@ -1,0 +1,8 @@
+{
+  "name": "Pos",
+  "code": "pos",
+  "version": "1.0.0",
+  "description": "Point of sale terminal, registers, and counter sales",
+  "is_core": false,
+  "dependencies": ["catalog", "commerce", "inventory"]
+}

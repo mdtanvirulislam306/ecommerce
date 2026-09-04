@@ -1,0 +1,8 @@
+{
+  "name": "Hrm",
+  "code": "hrm",
+  "version": "1.0.0",
+  "description": "Employees, attendance, leave, and payroll",
+  "is_core": false,
+  "dependencies": []
+}

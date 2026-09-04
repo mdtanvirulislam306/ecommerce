@@ -1,0 +1,8 @@
+{
+  "name": "Purchase",
+  "code": "purchase",
+  "version": "1.0.0",
+  "description": "Suppliers, purchase orders, and goods receive into inventory",
+  "is_core": false,
+  "dependencies": ["catalog", "inventory"]
+}

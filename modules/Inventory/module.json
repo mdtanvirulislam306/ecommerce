@@ -1,0 +1,8 @@
+{
+  "name": "Inventory",
+  "code": "inventory",
+  "version": "1.0.0",
+  "description": "Warehouses, stock levels, and stock movements",
+  "is_core": false,
+  "dependencies": ["catalog"]
+}

@@ -1,0 +1,21 @@
+<?php
+
+namespace Modules\Sales\Enums;
+
+enum PaymentMethod: string
+{
+    case Cash = 'cash';
+    case Card = 'card';
+    case Bank = 'bank';
+    case Other = 'other';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Cash => 'Cash',
+            self::Card => 'Card',
+            self::Bank => 'Bank transfer',
+            self::Other => 'Other',
+        };
+    }
+}

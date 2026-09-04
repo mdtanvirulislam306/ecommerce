@@ -1,0 +1,8 @@
+{
+  "name": "Catalog",
+  "code": "catalog",
+  "version": "1.0.0",
+  "description": "Products and categories (scaffold placeholder)",
+  "is_core": true,
+  "dependencies": []
+}

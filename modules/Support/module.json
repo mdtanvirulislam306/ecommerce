@@ -1,0 +1,8 @@
+{
+    "name": "Support",
+    "code": "support",
+    "version": "1.0.0",
+    "description": "Support tickets, categories, and canned responses",
+    "is_core": false,
+    "dependencies": []
+}

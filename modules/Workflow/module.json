@@ -1,0 +1,8 @@
+{
+    "name": "Workflow",
+    "code": "workflow",
+    "version": "1.0.0",
+    "description": "Approvals, automation rules, and scheduled tasks",
+    "is_core": false,
+    "dependencies": []
+}

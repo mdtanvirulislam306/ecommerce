@@ -1,0 +1,8 @@
+{
+  "name": "Ecommerce",
+  "code": "ecommerce",
+  "version": "1.0.0",
+  "description": "Storefront presentation, cart, checkout, and online orders",
+  "is_core": false,
+  "dependencies": ["catalog", "commerce", "inventory"]
+}

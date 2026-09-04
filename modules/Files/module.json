@@ -1,0 +1,8 @@
+{
+  "name": "Files",
+  "code": "files",
+  "version": "1.0.0",
+  "description": "Media library and documents",
+  "is_core": true,
+  "dependencies": []
+}

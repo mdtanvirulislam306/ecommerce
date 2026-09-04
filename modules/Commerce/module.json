@@ -1,0 +1,8 @@
+{
+  "name": "Commerce",
+  "code": "commerce",
+  "version": "1.0.0",
+  "description": "Pricing, promotions, loyalty, and commercial rules",
+  "is_core": false,
+  "dependencies": ["catalog"]
+}

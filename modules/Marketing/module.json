@@ -1,0 +1,8 @@
+{
+  "name": "Marketing",
+  "code": "marketing",
+  "version": "1.0.0",
+  "description": "Campaigns, stories, and promotions",
+  "is_core": false,
+  "dependencies": []
+}

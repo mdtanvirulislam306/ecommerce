@@ -1,0 +1,29 @@
+<?php
+
+namespace Modules\Commerce\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class StoreReferralRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'code' => ['required', 'string', 'max:40', 'unique:referrals,code'],
+            'referrer_name' => ['required', 'string', 'max:255'],
+            'referrer_email' => ['nullable', 'email', 'max:255'],
+            'referee_email' => ['nullable', 'email', 'max:255'],
+            'status' => ['required', 'string', Rule::in(['pending', 'completed', 'cancelled'])],
+            'reward_amount' => ['nullable', 'numeric', 'min:0'],
+        ];
+    }
+}

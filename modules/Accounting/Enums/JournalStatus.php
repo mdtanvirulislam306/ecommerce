@@ -1,0 +1,19 @@
+<?php
+
+namespace Modules\Accounting\Enums;
+
+enum JournalStatus: string
+{
+    case Draft = 'draft';
+    case Posted = 'posted';
+    case Void = 'void';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Draft => 'Draft',
+            self::Posted => 'Posted',
+            self::Void => 'Void',
+        };
+    }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Crm",
+  "code": "crm",
+  "version": "1.0.0",
+  "description": "Leads, customers, and relationship activities",
+  "is_core": false,
+  "dependencies": ["commerce"]
+}

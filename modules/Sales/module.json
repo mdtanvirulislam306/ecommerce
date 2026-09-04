@@ -1,0 +1,8 @@
+{
+  "name": "Sales",
+  "code": "sales",
+  "version": "1.0.0",
+  "description": "Sales orders with price snapshots and stock fulfillment",
+  "is_core": false,
+  "dependencies": ["catalog", "commerce", "inventory"]
+}

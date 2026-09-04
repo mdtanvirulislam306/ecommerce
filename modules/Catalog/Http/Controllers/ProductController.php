@@ -1,0 +1,127 @@
+<?php
+
+namespace Modules\Catalog\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+use Modules\Catalog\Enums\ProductStatus;
+use Modules\Catalog\Enums\ProductType;
+use Modules\Catalog\Http\Requests\StoreProductRequest;
+use Modules\Catalog\Http\Requests\UpdateProductRequest;
+use Modules\Catalog\Models\Product;
+use Modules\Catalog\Services\ProductService;
+
+class ProductController extends Controller
+{
+    public function index(Request $request, ProductService $service): Response
+    {
+        $status = $this->resolveListStatus($request);
+        $perPage = (int) $request->input('per_page', 25);
+        $search = $request->string('search')->trim()->toString();
+
+        $type = $request->filled('type')
+            ? ProductType::tryFrom($request->string('type')->toString())
+            : null;
+
+        return Inertia::render('Catalog/Products/Index', [
+            'products' => $service->listPaginated(
+                search: $search ?: null,
+                status: $status,
+                type: $type,
+                perPage: $perPage,
+            ),
+            'filters' => [
+                'search' => $search,
+                'status' => $status?->value,
+                'type' => $type?->value,
+                'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
+            ],
+            'listRoute' => $request->route()->getName(),
+            'listTitle' => $this->resolveListTitle($request),
+            'perPageOptions' => [10, 25, 50, 100],
+        ]);
+    }
+
+    public function create(ProductService $service): Response
+    {
+        return Inertia::render('Catalog/Products/Create', [
+            'options' => $service->formOptions(),
+        ]);
+    }
+
+    public function store(StoreProductRequest $request, ProductService $service): RedirectResponse
+    {
+        $product = $service->create(
+            $request->validated(),
+            $request->file('media', []),
+        );
+
+        return redirect()
+            ->route('products.show', $product)
+            ->with('success', 'Product created successfully.');
+    }
+
+    public function show(Product $product, ProductService $service): Response
+    {
+        return Inertia::render('Catalog/Products/Show', [
+            'product' => $service->findForDetail($product),
+        ]);
+    }
+
+    public function edit(Product $product, ProductService $service): Response
+    {
+        return Inertia::render('Catalog/Products/Edit', [
+            'product' => $service->findForDetail($product),
+            'options' => $service->formOptions(),
+        ]);
+    }
+
+    public function update(UpdateProductRequest $request, Product $product, ProductService $service): RedirectResponse
+    {
+        $service->update(
+            $product,
+            $request->validated(),
+            $request->file('media', []),
+        );
+
+        return redirect()
+            ->route('products.show', $product)
+            ->with('success', 'Product updated successfully.');
+    }
+
+    public function destroy(Product $product, ProductService $service): RedirectResponse
+    {
+        $service->delete($product);
+
+        return redirect()
+            ->route('products.index')
+            ->with('success', 'Product removed.');
+    }
+
+    private function resolveListStatus(Request $request): ?ProductStatus
+    {
+        return match ($request->route()->getName()) {
+            'products.draft' => ProductStatus::Draft,
+            'products.pending' => ProductStatus::PendingReview,
+            'products.active' => ProductStatus::Active,
+            'products.archived' => ProductStatus::Archived,
+            default => $request->filled('status')
+                ? ProductStatus::tryFrom($request->string('status')->toString())
+                : null,
+        };
+    }
+
+    private function resolveListTitle(Request $request): string
+    {
+        return match ($request->route()->getName()) {
+            'products.draft' => 'Draft Products',
+            'products.pending' => 'Pending Approval',
+            'products.active' => 'Active Products',
+            'products.archived' => 'Archived Products',
+            default => 'All Products',
+        };
+    }
+}

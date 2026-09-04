@@ -1,0 +1,8 @@
+{
+    "name": "Reports",
+    "code": "reports",
+    "version": "1.0.0",
+    "description": "Cross-module operational dashboards",
+    "is_core": false,
+    "dependencies": []
+}

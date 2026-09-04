@@ -1,0 +1,8 @@
+{
+  "name": "Accounting",
+  "code": "accounting",
+  "version": "1.0.0",
+  "description": "Double-entry chart of accounts, journals, and financial reports",
+  "is_core": false,
+  "dependencies": []
+}

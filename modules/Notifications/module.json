@@ -1,0 +1,8 @@
+{
+    "name": "Notifications",
+    "code": "notifications",
+    "version": "1.0.0",
+    "description": "Notification center, templates, and channel preferences",
+    "is_core": false,
+    "dependencies": []
+}

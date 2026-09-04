@@ -1,0 +1,8 @@
+{
+    "name": "Settings",
+    "code": "settings",
+    "version": "1.0.0",
+    "description": "Shop settings, users, roles, and configuration",
+    "is_core": true,
+    "dependencies": []
+}
