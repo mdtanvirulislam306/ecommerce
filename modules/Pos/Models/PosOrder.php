@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Crm\Models\Customer;
 use Modules\Pos\Enums\PosOrderStatus;
 
 class PosOrder extends Model
@@ -16,6 +17,7 @@ class PosOrder extends Model
         'pos_register_id',
         'pos_session_id',
         'warehouse_id',
+        'customer_id',
         'customer_name',
         'payment_method',
         'currency',
@@ -40,6 +42,11 @@ class PosOrder extends Model
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function items(): HasMany

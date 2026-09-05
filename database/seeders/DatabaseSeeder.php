@@ -16,17 +16,25 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             AdminUserSeeder::class,
+            SettingsSeeder::class,
             CatalogSeeder::class,
             CommerceSeeder::class,
-            EcommerceSeeder::class,
             InventorySeeder::class,
             ShopDefaultsSeeder::class,
+            CrmSeeder::class,
             SalesSeeder::class,
             PurchaseSeeder::class,
-            CrmSeeder::class,
-            AccountingSeeder::class,
+            EcommerceSeeder::class,
             EcommerceOrderSeeder::class,
+            AccountingSeeder::class,
             PosSeeder::class,
+            HrmSeeder::class,
+            SupportSeeder::class,
+            MarketingSeeder::class,
+            TasksSeeder::class,
+            NotificationsSeeder::class,
+            WorkflowSeeder::class,
+            FilesSeeder::class,
             BillingSeeder::class,
         ]);
     }

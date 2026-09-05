@@ -23,6 +23,7 @@ class UpdateQuotationRequest extends FormRequest
             ->all();
 
         $this->merge([
+            'customer_id' => $this->input('customer_id') ?: null,
             'customer_group_id' => $this->input('customer_group_id') ?: null,
             'warehouse_id' => $this->input('warehouse_id') ?: null,
             'customer_email' => $this->input('customer_email') ?: null,
@@ -38,7 +39,8 @@ class UpdateQuotationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
+            'customer_name' => ['sometimes', 'required_without:customer_id', 'nullable', 'string', 'max:255'],
             'customer_email' => ['nullable', 'email', 'max:255'],
             'customer_phone' => ['nullable', 'string', 'max:40'],
             'customer_group_id' => ['nullable', 'integer', 'exists:customer_groups,id'],

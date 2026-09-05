@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CustomerPicker from '@/Components/Admin/CustomerPicker.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -10,17 +11,23 @@ const props = defineProps({
     register: { type: Object, required: true },
     sessionOpen: { type: Boolean, default: false },
     products: { type: Array, default: () => [] },
+    customers: { type: Array, default: () => [] },
     stats: { type: Object, required: true },
 });
 
 const page = usePage();
 const flash = computed(() => page.props.flash);
+
+const applyCustomer = (customer) => {
+    form.customer_name = customer?.name || 'Walk-in';
+};
 const query = ref('');
 const results = ref([...props.products]);
 const cart = ref([]);
 
 const form = useForm({
     pos_register_id: props.register.id,
+    customer_id: '',
     customer_name: 'Walk-in',
     amount_tendered: '',
     items: [],
@@ -100,6 +107,7 @@ const complete = () => {
         onSuccess: () => {
             cart.value = [];
             form.reset('amount_tendered', 'items');
+            form.customer_id = '';
             form.customer_name = 'Walk-in';
             form.pos_register_id = props.register.id;
         },
@@ -172,9 +180,15 @@ const complete = () => {
 
             <section class="admin-card space-y-4">
                 <h2 class="text-sm font-semibold text-brand-navy">Current sale</h2>
-                <div>
-                    <label class="text-xs text-gray-500">Customer</label>
-                    <TextInput v-model="form.customer_name" class="mt-1 block w-full" />
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-500">CRM customer</label>
+                    <CustomerPicker
+                        v-model="form.customer_id"
+                        :customers="customers"
+                        placeholder="Walk-in"
+                        @picked="applyCustomer"
+                    />
+                    <TextInput v-model="form.customer_name" class="block w-full" placeholder="Walk-in name" />
                 </div>
 
                 <div class="max-h-64 space-y-2 overflow-y-auto">

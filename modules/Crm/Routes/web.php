@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Modules\Crm\Http\Controllers\ActivityController;
 use Modules\Crm\Http\Controllers\CrmOverviewController;
@@ -13,6 +14,7 @@ Route::get('/overview', [CrmOverviewController::class, 'index'])->name('overview
 Route::get('/reports', [CrmReportController::class, 'index'])->name('reports');
 
 Route::prefix('customers')->name('customers.')->group(function () {
+    Route::get('/', fn () => redirect()->route('crm.customers.all'))->name('index');
     Route::get('/all', [CustomerController::class, 'index'])->name('all');
     Route::get('/create', [CustomerController::class, 'create'])->name('create');
     Route::get('/segments', [CustomerSegmentController::class, 'index'])->name('segments');
@@ -20,13 +22,28 @@ Route::prefix('customers')->name('customers.')->group(function () {
     Route::put('/segments/{customerSegment}', [CustomerSegmentController::class, 'update'])->name('segments.update');
     Route::delete('/segments/{customerSegment}', [CustomerSegmentController::class, 'destroy'])->name('segments.destroy');
     Route::post('/', [CustomerController::class, 'store'])->name('store');
+    Route::get('/{customer}', [CustomerController::class, 'show'])->name('show');
     Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
     Route::delete('/{customer}', [CustomerController::class, 'destroy'])->name('destroy');
 });
 
 Route::prefix('leads')->name('leads.')->group(function () {
+    Route::get('/', fn () => redirect()->route('crm.leads.all'))->name('index');
+    Route::get('/export', [LeadController::class, 'export'])->name('export');
+    Route::get('/my/export', function (Request $request) {
+        return redirect()->route('crm.leads.export', [
+            ...$request->query(),
+            'scope' => 'mine',
+        ]);
+    })->name('my.export');
+    Route::get('/pipeline/export', function (Request $request) {
+        return redirect()->route('crm.leads.export', [
+            ...$request->query(),
+            'view' => 'pipeline',
+        ]);
+    })->name('pipeline.export');
     Route::get('/all', [LeadController::class, 'index'])->name('all');
-    Route::get('/my', [LeadController::class, 'index'])->name('my');
+    Route::get('/my', [LeadController::class, 'my'])->name('my');
     Route::get('/pipeline', [LeadController::class, 'pipeline'])->name('pipeline');
     Route::get('/create', [LeadController::class, 'create'])->name('create');
     Route::get('/sources', [LeadSourceController::class, 'index'])->name('sources');
@@ -42,6 +59,7 @@ Route::prefix('leads')->name('leads.')->group(function () {
 });
 
 Route::prefix('activities')->name('activities.')->group(function () {
+    Route::get('/', fn () => redirect()->route('crm.activities.all'))->name('index');
     Route::get('/all', [ActivityController::class, 'index'])->name('all');
     Route::get('/follow-ups', [ActivityController::class, 'index'])->name('follow-ups');
     Route::get('/calendar', [ActivityController::class, 'calendar'])->name('calendar');

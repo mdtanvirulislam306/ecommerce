@@ -20,6 +20,7 @@ class UpdateCampaignRequest extends FormRequest
             'subject' => $this->input('subject') ?: null,
             'body' => $this->input('body') ?: null,
             'scheduled_at' => $this->input('scheduled_at') ?: null,
+            'customer_segment_id' => $this->input('customer_segment_id') ?: null,
         ]);
     }
 
@@ -36,6 +37,7 @@ class UpdateCampaignRequest extends FormRequest
             'body' => ['nullable', 'string', 'max:20000'],
             'scheduled_at' => ['nullable', 'date'],
             'audience_count' => ['nullable', 'integer', 'min:0'],
+            'customer_segment_id' => ['nullable', 'integer', 'exists:customer_segments,id'],
         ];
     }
 }

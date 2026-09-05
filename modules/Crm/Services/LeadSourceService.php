@@ -10,18 +10,31 @@ use Modules\Crm\Models\LeadSource;
 
 class LeadSourceService extends Service
 {
-    public function listPaginated(?string $search = null, int $perPage = 25): LengthAwarePaginator
+    /**
+     * @param  array{search?: string|null, is_active?: string|null, sort?: string|null, direction?: string|null, per_page?: int}  $filters
+     */
+    public function listPaginated(array $filters = []): LengthAwarePaginator
     {
-        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
+        $perPage = in_array((int) ($filters['per_page'] ?? 25), [10, 25, 50, 100], true)
+            ? (int) $filters['per_page']
+            : 25;
+        $sort = in_array($filters['sort'] ?? '', ['name', 'code', 'sort_order', 'leads_count'], true)
+            ? $filters['sort']
+            : 'sort_order';
+        $direction = ($filters['direction'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
 
         return LeadSource::query()
             ->withCount('leads')
-            ->when($search, fn ($query, $search) => $query->where(function ($inner) use ($search) {
+            ->when($filters['search'] ?? null, fn ($query, $search) => $query->where(function ($inner) use ($search) {
                 $inner->where('name', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%");
             }))
-            ->orderBy('sort_order')
-            ->orderBy('name')
+            ->when(
+                in_array($filters['is_active'] ?? '', ['0', '1'], true),
+                fn ($query) => $query->where('is_active', $filters['is_active'] === '1'),
+            )
+            ->orderBy($sort, $direction)
+            ->when($sort !== 'name', fn ($query) => $query->orderBy('name'))
             ->paginate($perPage)
             ->withQueryString();
     }

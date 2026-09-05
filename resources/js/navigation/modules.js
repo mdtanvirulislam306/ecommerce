@@ -27,9 +27,7 @@ export const primaryModules = [
         children: [
             { label: 'Overview', path: '/admin/crm/overview' },
             group('Leads', [
-                { label: 'All Leads', path: '/admin/crm/leads/all' },
-                { label: 'My Leads', path: '/admin/crm/leads/my' },
-                { label: 'Lead Pipeline', path: '/admin/crm/leads/pipeline' },
+                { label: 'Leads', path: '/admin/crm/leads/all' },
                 { label: 'Lead Sources', path: '/admin/crm/leads/sources' },
                 { label: 'Add Lead', path: '/admin/crm/leads/create' },
             ]),

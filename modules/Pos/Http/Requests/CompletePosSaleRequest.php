@@ -3,6 +3,7 @@
 namespace Modules\Pos\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CompletePosSaleRequest extends FormRequest
 {
@@ -22,6 +23,7 @@ class CompletePosSaleRequest extends FormRequest
 
         $this->merge([
             'pos_register_id' => $this->input('pos_register_id') ?: null,
+            'customer_id' => $this->input('customer_id') ?: null,
             'customer_name' => $this->input('customer_name') ?: 'Walk-in',
             'notes' => $this->input('notes') ?: null,
             'items' => $items,
@@ -35,6 +37,7 @@ class CompletePosSaleRequest extends FormRequest
     {
         return [
             'pos_register_id' => ['nullable', 'integer', 'exists:pos_registers,id'],
+            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('is_active', true)],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'amount_tendered' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:2000'],

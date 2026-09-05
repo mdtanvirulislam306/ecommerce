@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Crm\Models\Customer;
 use Modules\Sales\Enums\InvoiceStatus;
 
 class SalesInvoice extends Model
@@ -14,6 +15,7 @@ class SalesInvoice extends Model
         'number',
         'sales_order_id',
         'status',
+        'customer_id',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -39,6 +41,11 @@ class SalesInvoice extends Model
             'amount_due' => 'decimal:4',
             'due_date' => 'date',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function items(): HasMany

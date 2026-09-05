@@ -11,7 +11,14 @@ class CatalogSettingsService extends Service
 {
     public function get(): CatalogSetting
     {
-        return CatalogSetting::query()->firstOrCreate([]);
+        $settings = CatalogSetting::query()->firstOrCreate([], $this->defaults());
+
+        if ($this->needsRepair($settings)) {
+            $settings->fill($this->defaults())->save();
+            $settings->refresh();
+        }
+
+        return $settings;
     }
 
     /**
@@ -57,12 +64,37 @@ class CatalogSettingsService extends Service
 
     public function defaultProductStatus(): ProductStatus
     {
-        return $this->get()->default_product_status;
+        return $this->get()->default_product_status ?? ProductStatus::Draft;
     }
 
     public function defaultPublicationStatus(): PublicationStatus
     {
-        return $this->get()->default_publication_status;
+        return $this->get()->default_publication_status ?? PublicationStatus::NotPublished;
+    }
+
+    private function needsRepair(CatalogSetting $settings): bool
+    {
+        $status = $settings->getRawOriginal('default_product_status');
+        $publication = $settings->getRawOriginal('default_publication_status');
+
+        return ProductStatus::tryFrom((string) $status) === null
+            || PublicationStatus::tryFrom((string) $publication) === null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaults(): array
+    {
+        return [
+            'default_product_status' => ProductStatus::Draft,
+            'default_publication_status' => PublicationStatus::NotPublished,
+            'require_brand_on_create' => false,
+            'require_primary_category_on_create' => false,
+            'require_unit_on_create' => false,
+            'auto_submit_for_review_on_create' => false,
+            'max_media_per_product' => 10,
+        ];
     }
 
     public function shouldAutoSubmitForReview(): bool

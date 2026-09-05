@@ -3,7 +3,9 @@
 namespace Modules\Ecommerce\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Crm\Models\Customer;
 use Modules\Ecommerce\Enums\OnlineOrderStatus;
 use Modules\Ecommerce\Enums\PaymentMethod;
 
@@ -12,6 +14,7 @@ class OnlineOrder extends Model
     protected $fillable = [
         'number',
         'status',
+        'customer_id',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -36,6 +39,11 @@ class OnlineOrder extends Model
             'confirmed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function items(): HasMany

@@ -9,6 +9,16 @@ use Modules\Catalog\Enums\PublicationStatus;
 
 class CatalogSetting extends Model
 {
+    protected $attributes = [
+        'default_product_status' => 'draft',
+        'default_publication_status' => 'not_published',
+        'require_brand_on_create' => false,
+        'require_primary_category_on_create' => false,
+        'require_unit_on_create' => false,
+        'auto_submit_for_review_on_create' => false,
+        'max_media_per_product' => 10,
+    ];
+
     protected $fillable = [
         'default_product_status',
         'default_publication_status',

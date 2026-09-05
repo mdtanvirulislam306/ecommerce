@@ -10,6 +10,7 @@ use App\Core\Support\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Crm\Services\CustomerService;
 use Modules\Pos\Enums\PosOrderStatus;
 use Modules\Pos\Models\PosOrder;
 use Modules\Pos\Models\PosOrderItem;
@@ -21,6 +22,7 @@ class PosSaleService extends Service
         private readonly PriceResolver $prices,
         private readonly StockAvailability $stock,
         private readonly PosRegisterService $registers,
+        private readonly CustomerService $customers,
     ) {}
 
     /**
@@ -72,6 +74,14 @@ class PosSaleService extends Service
     /**
      * @return list<array{id: int, name: string, sku: ?string, type: string, price: ?string, currency: string, stock_available: string, in_stock: bool}>
      */
+    /**
+     * @return list<array{id: int, name: string, code: string, email: ?string, phone: ?string, company: ?string, customer_group_id: ?int}>
+     */
+    public function customerOptions(): array
+    {
+        return $this->customers->optionList();
+    }
+
     public function searchableProducts(?string $search = null, int $limit = 30): array
     {
         $query = DB::table('products')
@@ -150,6 +160,7 @@ class PosSaleService extends Service
     /**
      * @param  array{
      *     pos_register_id?: int|null,
+     *     customer_id?: int|null,
      *     customer_name?: string|null,
      *     amount_tendered?: float|int|string|null,
      *     notes?: string|null,
@@ -159,6 +170,8 @@ class PosSaleService extends Service
     public function completeSale(array $data, ?int $userId = null): PosOrder
     {
         return DB::transaction(function () use ($data, $userId) {
+            $data = $this->customers->applySnapshot($data);
+
             $register = ! empty($data['pos_register_id'])
                 ? PosRegister::query()->findOrFail($data['pos_register_id'])
                 : $this->registers->ensureDefault();
@@ -197,6 +210,7 @@ class PosSaleService extends Service
                 'pos_register_id' => $register->id,
                 'pos_session_id' => $session->id,
                 'warehouse_id' => $warehouseId,
+                'customer_id' => $data['customer_id'] ?? null,
                 'customer_name' => $data['customer_name'] ?? 'Walk-in',
                 'payment_method' => 'cash',
                 'currency' => $lines[0]['currency'] ?? 'BDT',
@@ -297,6 +311,7 @@ class PosSaleService extends Service
             ...$this->formatList($order),
             'pos_register_id' => $order->pos_register_id,
             'register_name' => $order->register?->name,
+            'customer_id' => $order->customer_id,
             'customer_name' => $order->customer_name,
             'payment_method' => $order->payment_method,
             'amount_tendered' => (string) $order->amount_tendered,
@@ -430,6 +445,7 @@ class PosSaleService extends Service
             'status' => $order->status->value,
             'status_label' => $order->status->label(),
             'customer_name' => $order->customer_name,
+            'customer_id' => $order->customer_id,
             'currency' => $order->currency,
             'grand_total' => (string) $order->grand_total,
             'items_count' => $order->items_count ?? $order->items()->count(),

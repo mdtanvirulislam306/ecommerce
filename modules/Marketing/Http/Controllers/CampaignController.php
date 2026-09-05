@@ -25,6 +25,7 @@ class CampaignController extends Controller
                 $request->integer('per_page', 25),
                 $request->string('channel')->toString() ?: null,
             ),
+            'crmSegments' => $campaigns->crmSegmentOptions(),
             'filters' => [
                 'search' => $request->string('search')->toString(),
                 'per_page' => $request->integer('per_page', 25),
@@ -53,6 +54,7 @@ class CampaignController extends Controller
                 $request->integer('per_page', 25),
                 $channelEnum->value,
             ),
+            'crmSegments' => $campaigns->crmSegmentOptions(),
             'filters' => [
                 'search' => $request->string('search')->toString(),
                 'per_page' => $request->integer('per_page', 25),
@@ -82,6 +84,7 @@ class CampaignController extends Controller
             'body' => ['nullable', 'string', 'max:20000'],
             'scheduled_at' => ['nullable', 'date'],
             'audience_count' => ['nullable', 'integer', 'min:0'],
+            'customer_segment_id' => ['nullable', 'integer', 'exists:customer_segments,id'],
         ]);
 
         $data['channel'] = $channel;
@@ -109,6 +112,7 @@ class CampaignController extends Controller
             'body' => ['nullable', 'string', 'max:20000'],
             'scheduled_at' => ['nullable', 'date'],
             'audience_count' => ['nullable', 'integer', 'min:0'],
+            'customer_segment_id' => ['nullable', 'integer', 'exists:customer_segments,id'],
         ]);
 
         $data['channel'] = $channel;

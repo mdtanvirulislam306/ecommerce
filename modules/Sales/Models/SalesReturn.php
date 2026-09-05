@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Crm\Models\Customer;
 use Modules\Sales\Enums\SalesReturnStatus;
 
 class SalesReturn extends Model
@@ -16,6 +17,7 @@ class SalesReturn extends Model
         'sales_order_id',
         'status',
         'warehouse_id',
+        'customer_id',
         'customer_name',
         'currency',
         'subtotal',
@@ -33,6 +35,11 @@ class SalesReturn extends Model
             'grand_total' => 'decimal:4',
             'confirmed_at' => 'datetime',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function items(): HasMany

@@ -38,12 +38,22 @@ class SalesOrderController extends Controller
         ]);
     }
 
-    public function create(SalesOrderService $service): Response
+    public function create(Request $request, SalesOrderService $service): Response
     {
+        $customers = $service->customerOptions();
+        $prefillCustomerId = $request->integer('customer_id') ?: null;
+        $prefillCustomer = null;
+
+        if ($prefillCustomerId) {
+            $prefillCustomer = collect($customers)->firstWhere('id', $prefillCustomerId);
+        }
+
         return Inertia::render('Sales/Orders/Create', [
             'productOptions' => $service->searchProducts(),
+            'customers' => $customers,
             'customerGroups' => $service->customerGroups(),
             'warehouses' => $service->warehouses(),
+            'prefillCustomer' => $prefillCustomer,
         ]);
     }
 

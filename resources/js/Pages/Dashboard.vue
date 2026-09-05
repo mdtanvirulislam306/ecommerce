@@ -38,7 +38,7 @@ const enabledModules = computed(() => page.props.enabledModules ?? []);
             </div>
             <div class="mt-6">
                 <Link
-                    :href="route('module', { module: 'sales', page: 'overview' })"
+                    :href="route('sales.overview')"
                     class="text-sm font-medium text-brand-orange hover:text-brand-orange-dark"
                 >
                     Go to Sales →

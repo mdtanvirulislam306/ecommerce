@@ -82,7 +82,16 @@ const postAction = (routeName) => {
                         {{ quotation.status_label }}
                     </span>
                 </div>
-                <p class="text-sm text-gray-600">Customer: {{ quotation.customer_name }}</p>
+                <p class="text-sm text-gray-600">
+                    Customer: {{ quotation.customer_name }}
+                    <Link
+                        v-if="quotation.customer_id"
+                        :href="route('crm.customers.show', quotation.customer_id)"
+                        class="ml-2 text-xs font-medium text-brand-orange hover:underline"
+                    >
+                        CRM
+                    </Link>
+                </p>
                 <p v-if="quotation.customer_email" class="text-sm text-gray-500">{{ quotation.customer_email }}</p>
                 <p v-if="quotation.valid_until" class="text-sm text-gray-500">Valid until {{ quotation.valid_until }}</p>
                 <p v-if="quotation.notes" class="text-sm text-gray-500">{{ quotation.notes }}</p>

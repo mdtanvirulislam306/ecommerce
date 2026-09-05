@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Crm\Models\Customer;
 use Modules\Sales\Enums\QuotationStatus;
 
 class SalesQuotation extends Model
@@ -13,6 +14,7 @@ class SalesQuotation extends Model
     protected $fillable = [
         'number',
         'status',
+        'customer_id',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -37,6 +39,11 @@ class SalesQuotation extends Model
             'grand_total' => 'decimal:4',
             'valid_until' => 'date',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function items(): HasMany

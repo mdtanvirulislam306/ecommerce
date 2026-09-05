@@ -103,6 +103,7 @@ class InvoiceService extends Service
                 'number' => $this->nextNumber(),
                 'sales_order_id' => $order->id,
                 'status' => InvoiceStatus::Due,
+                'customer_id' => $order->customer_id,
                 'customer_name' => $order->customer_name,
                 'customer_email' => $order->customer_email,
                 'customer_phone' => $order->customer_phone,

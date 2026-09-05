@@ -13,7 +13,7 @@ class CrmOverviewController extends Controller
     {
         return Inertia::render('Crm/Overview/Index', [
             'stats' => $leads->overviewStats(),
-            'recentLeads' => $leads->listPaginated(perPage: 8)->items(),
+            'recentLeads' => $leads->recentLeads(),
         ]);
     }
 }

@@ -11,6 +11,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Modules\Crm\Services\CustomerService;
 use Modules\Sales\Enums\SalesOrderStatus;
 use Modules\Sales\Models\SalesOrder;
 use Modules\Sales\Models\SalesOrderItem;
@@ -20,6 +21,7 @@ class SalesOrderService extends Service
     public function __construct(
         private readonly PriceResolver $prices,
         private readonly StockAvailability $stock,
+        private readonly CustomerService $customers,
     ) {}
 
     /**
@@ -72,6 +74,7 @@ class SalesOrderService extends Service
 
     /**
      * @param  array{
+     *     customer_id?: int|null,
      *     customer_name: string,
      *     customer_email?: string|null,
      *     customer_phone?: string|null,
@@ -85,6 +88,8 @@ class SalesOrderService extends Service
     public function create(array $data, ?int $userId = null): SalesOrder
     {
         return DB::transaction(function () use ($data, $userId) {
+            $data = $this->customers->applySnapshot($data);
+
             $status = SalesOrderStatus::tryFrom($data['status'] ?? SalesOrderStatus::Draft->value)
                 ?? SalesOrderStatus::Draft;
 
@@ -108,6 +113,7 @@ class SalesOrderService extends Service
             $order = SalesOrder::query()->create([
                 'number' => $this->nextNumber(),
                 'status' => $status === SalesOrderStatus::Confirmed ? SalesOrderStatus::Pending : $status,
+                'customer_id' => $data['customer_id'] ?? null,
                 'customer_name' => $data['customer_name'],
                 'customer_email' => $data['customer_email'] ?? null,
                 'customer_phone' => $data['customer_phone'] ?? null,
@@ -287,6 +293,7 @@ class SalesOrderService extends Service
 
         return [
             ...$this->formatForList($order),
+            'customer_id' => $order->customer_id,
             'customer_email' => $order->customer_email,
             'customer_phone' => $order->customer_phone,
             'customer_group_id' => $order->customer_group_id,
@@ -357,6 +364,14 @@ class SalesOrderService extends Service
     /**
      * @return list<array{id: int, name: string, code: string}>
      */
+    /**
+     * @return list<array{id: int, name: string, code: string, email: ?string, phone: ?string, company: ?string, customer_group_id: ?int}>
+     */
+    public function customerOptions(): array
+    {
+        return $this->customers->optionList();
+    }
+
     public function customerGroups(): array
     {
         return DB::table('customer_groups')
@@ -555,6 +570,7 @@ class SalesOrderService extends Service
             'status' => $order->status->value,
             'status_label' => $order->status->label(),
             'customer_name' => $order->customer_name,
+            'customer_id' => $order->customer_id,
             'currency' => $order->currency,
             'subtotal' => (string) $order->subtotal,
             'grand_total' => (string) $order->grand_total,

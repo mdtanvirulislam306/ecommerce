@@ -42,6 +42,7 @@ class QuotationController extends Controller
     {
         return Inertia::render('Sales/Quotations/Create', [
             'productOptions' => $orders->searchProducts(),
+            'customers' => $orders->customerOptions(),
             'customerGroups' => $orders->customerGroups(),
             'warehouses' => $orders->warehouses(),
         ]);
@@ -68,6 +69,7 @@ class QuotationController extends Controller
         return Inertia::render('Sales/Quotations/Edit', [
             'quotation' => $service->formatForDetail($quotation),
             'productOptions' => $orders->searchProducts(),
+            'customers' => $orders->customerOptions(),
             'customerGroups' => $orders->customerGroups(),
             'warehouses' => $orders->warehouses(),
         ]);

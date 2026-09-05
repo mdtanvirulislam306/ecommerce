@@ -8,12 +8,28 @@ use Modules\Catalog\Enums\PublicationStatus;
 use Modules\Ecommerce\Enums\ReviewStatus;
 use Modules\Ecommerce\Models\ProductReview;
 use Modules\Ecommerce\Models\ProductStorefrontSetting;
+use Modules\Ecommerce\Services\StoreSettingService;
 
 class EcommerceSeeder extends Seeder
 {
     public function run(): void
     {
-        $products = DB::table('products')->orderBy('id')->limit(3)->get();
+        app(StoreSettingService::class)->putMany([
+            'store_name' => 'Budget & Bazar',
+            'support_email' => 'hello@budgetandbazar.example',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+        ]);
+
+        $products = DB::table('products')
+            ->where('publication_status', 'published')
+            ->orderBy('id')
+            ->limit(3)
+            ->get();
+
+        if ($products->isEmpty()) {
+            $products = DB::table('products')->orderBy('id')->limit(3)->get();
+        }
 
         if ($products->isEmpty()) {
             return;

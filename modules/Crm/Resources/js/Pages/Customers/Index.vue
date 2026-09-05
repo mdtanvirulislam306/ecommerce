@@ -1,4 +1,6 @@
 <script setup>
+import AdminEmptyState from '@/Components/Admin/AdminEmptyState.vue';
+import AdminSortableTh from '@/Components/Admin/AdminSortableTh.vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
 import SearchableSelect from '@/Components/Admin/SearchableSelect.vue';
@@ -11,7 +13,8 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import { formatDateTime } from '@/utils/formatDateTime';
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { paginationMeta } from '@/utils/paginationMeta';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -25,7 +28,14 @@ const props = defineProps({
 const page = usePage();
 const flash = computed(() => page.props.flash);
 const search = ref(props.filters.search ?? '');
+const isActive = ref(props.filters.is_active ?? '');
+const groupId = ref(props.filters.customer_group_id ?? '');
+const sort = ref(props.filters.sort ?? 'created_at');
+const direction = ref(props.filters.direction ?? 'desc');
 const perPage = ref(props.filters.per_page ?? 25);
+const meta = computed(() => paginationMeta(props.customers));
+const hasActiveFilters = computed(() => Boolean(search.value || isActive.value !== '' || groupId.value));
+const showEmptyState = computed(() => meta.value.total === 0 && !hasActiveFilters.value);
 const showModal = ref(false);
 const editing = ref(null);
 const deleteTarget = ref(null);
@@ -139,9 +149,33 @@ const submitQuickGroup = async () => {
 const visitIndex = () => {
     router.get(
         route('crm.customers.all'),
-        { search: search.value || undefined, per_page: perPage.value },
+        {
+            search: search.value || undefined,
+            is_active: isActive.value !== '' ? isActive.value : undefined,
+            customer_group_id: groupId.value || undefined,
+            sort: sort.value,
+            direction: direction.value,
+            per_page: perPage.value,
+        },
         { preserveState: true, preserveScroll: true, replace: true },
     );
+};
+
+const toggleSort = (column) => {
+    if (sort.value === column) {
+        direction.value = direction.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sort.value = column;
+        direction.value = column === 'created_at' ? 'desc' : 'asc';
+    }
+    visitIndex();
+};
+
+const clearFilters = () => {
+    search.value = '';
+    isActive.value = '';
+    groupId.value = '';
+    visitIndex();
 };
 
 let searchTimer = null;
@@ -149,6 +183,7 @@ watch(search, () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(visitIndex, 300);
 });
+watch([isActive, groupId], visitIndex);
 
 onMounted(() => {
     if (props.openCreate) {
@@ -165,36 +200,71 @@ onMounted(() => {
             {{ flash.success }}
         </div>
 
-        <div class="admin-data-table">
+        <AdminEmptyState
+            v-if="showEmptyState"
+            title="No customers yet"
+            description="Add a buyer so Sales and POS can attach orders and pricing groups."
+            action-label="Add your first customer"
+            @action="openCreate"
+        />
+
+        <div v-else class="admin-data-table">
             <div class="admin-data-table__toolbar">
                 <div>
                     <h2 class="text-sm font-semibold text-brand-navy">All customers</h2>
-                    <p class="mt-0.5 text-xs text-gray-500">Buyers for sales & POS — assign a group for pricing.</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ meta.total }} total · buyers for sales & POS</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <input v-model="search" type="search" placeholder="Search…" class="admin-data-table__search" />
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative">
+                        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input v-model="search" type="search" placeholder="Search name, code, email…" class="admin-data-table__search" />
+                    </div>
                     <PrimaryButton type="button" @click="openCreate">Add customer</PrimaryButton>
                 </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-3 sm:px-5">
+                <select v-model="isActive" class="admin-filter-select">
+                    <option value="">All statuses</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+                <select v-model="groupId" class="admin-filter-select">
+                    <option value="">All groups</option>
+                    <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
+                </select>
+                <button
+                    v-if="hasActiveFilters"
+                    type="button"
+                    class="text-xs font-medium text-brand-orange hover:text-brand-orange-dark"
+                    @click="clearFilters"
+                >
+                    Clear filters
+                </button>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead class="border-b border-gray-200 bg-gray-50/90">
                         <tr class="admin-data-table__head">
-                            <th>Name</th>
-                            <th>Code</th>
+                            <AdminSortableTh label="Name" column="name" :sort="sort" :direction="direction" @sort="toggleSort" />
+                            <AdminSortableTh label="Code" column="code" :sort="sort" :direction="direction" @sort="toggleSort" />
                             <th>Contact</th>
                             <th>Group</th>
                             <th>Status</th>
-                            <th>Created</th>
+                            <AdminSortableTh label="Created" column="created_at" :sort="sort" :direction="direction" @sort="toggleSort" />
                             <th class="text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="customer in customers.data" :key="customer.id" class="admin-data-table__row">
-                            <td class="admin-data-table__cell font-medium text-brand-navy">
-                                {{ customer.name }}
-                                <div v-if="customer.company" class="text-xs font-normal text-gray-500">{{ customer.company }}</div>
+                            <td class="admin-data-table__cell">
+                                <Link :href="route('crm.customers.show', customer.id)" class="font-medium text-brand-navy hover:text-brand-orange">
+                                    {{ customer.name }}
+                                </Link>
+                                <p v-if="customer.company" class="mt-0.5 text-xs text-gray-500">{{ customer.company }}</p>
                             </td>
                             <td class="admin-data-table__cell text-gray-600">{{ customer.code }}</td>
                             <td class="admin-data-table__cell text-sm text-gray-500">
@@ -204,31 +274,51 @@ onMounted(() => {
                             <td class="admin-data-table__cell text-gray-600">{{ customer.customer_group_name || '—' }}</td>
                             <td class="admin-data-table__cell">
                                 <span
-                                    class="rounded-full px-2 py-0.5 text-xs font-medium"
-                                    :class="customer.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'"
+                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
+                                    :class="customer.is_active ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-500 ring-gray-200'"
                                 >
                                     {{ customer.is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
                             <td class="admin-data-table__cell text-gray-500">{{ formatDateTime(customer.created_at) }}</td>
-                            <td class="admin-data-table__cell text-right">
-                                <button type="button" class="admin-data-table__action" @click="openEdit(customer)">Edit</button>
-                                <button type="button" class="admin-data-table__action text-red-600" @click="deleteTarget = customer">
-                                    Delete
-                                </button>
+                            <td class="admin-data-table__cell">
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <Link :href="route('crm.customers.show', customer.id)" class="admin-data-table__action" title="View">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </Link>
+                                    <button type="button" class="admin-data-table__action" title="Edit" @click="openEdit(customer)">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="admin-data-table__action admin-data-table__action--danger" title="Delete" @click="deleteTarget = customer">
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="!customers.data.length">
-                            <td colspan="7" class="px-5 py-12 text-center text-sm text-gray-500">No customers yet.</td>
+                            <td colspan="7" class="px-5 py-12 text-center text-sm text-gray-500">No customers match these filters.</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
-                    <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
-                </select>
+                <div class="flex flex-wrap items-center gap-3">
+                    <label class="flex items-center gap-2 text-xs text-gray-600">
+                        <span>Rows per page</span>
+                        <select v-model.number="perPage" class="admin-filter-select py-1.5" @change="visitIndex">
+                            <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }}</option>
+                        </select>
+                    </label>
+                    <span>Showing {{ meta.from ?? 0 }}–{{ meta.to ?? 0 }} of {{ meta.total }}</span>
+                </div>
                 <TablePagination :paginator="customers" :links="customers.links" />
             </div>
         </div>

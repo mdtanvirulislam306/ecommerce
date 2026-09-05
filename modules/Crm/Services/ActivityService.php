@@ -11,27 +11,54 @@ use Modules\Crm\Models\CrmActivity;
 
 class ActivityService extends Service
 {
-    public function listPaginated(
-        ?string $search = null,
-        ?ActivityType $type = null,
-        bool $followUpsOnly = false,
-        int $perPage = 25,
-    ): LengthAwarePaginator {
-        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
+    /**
+     * @param  array{
+     *     search?: string|null,
+     *     type?: ActivityType|null,
+     *     status?: string|null,
+     *     follow_ups?: bool,
+     *     sort?: string|null,
+     *     direction?: string|null,
+     *     per_page?: int
+     * }  $filters
+     */
+    public function listPaginated(array $filters = []): LengthAwarePaginator
+    {
+        $perPage = in_array((int) ($filters['per_page'] ?? 25), [10, 25, 50, 100], true)
+            ? (int) $filters['per_page']
+            : 25;
+        $sort = in_array($filters['sort'] ?? '', ['subject', 'type', 'due_at', 'created_at'], true)
+            ? $filters['sort']
+            : 'due_at';
+        $direction = ($filters['direction'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+        $status = $filters['status'] ?? '';
 
-        return CrmActivity::query()
+        $query = CrmActivity::query()
             ->with(['lead:id,name', 'customer:id,name,code'])
-            ->when($type, fn ($query, $type) => $query->where('type', $type->value))
-            ->when($followUpsOnly, fn ($query) => $query
+            ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type->value))
+            ->when($filters['follow_ups'] ?? false, fn ($query) => $query
                 ->whereNull('completed_at')
                 ->whereNotNull('due_at'))
-            ->when($search, fn ($query, $search) => $query->where(function ($inner) use ($search) {
+            ->when($status === 'open', fn ($query) => $query->whereNull('completed_at'))
+            ->when($status === 'done', fn ($query) => $query->whereNotNull('completed_at'))
+            ->when($status === 'overdue', fn ($query) => $query
+                ->whereNull('completed_at')
+                ->whereNotNull('due_at')
+                ->where('due_at', '<', now()))
+            ->when($filters['search'] ?? null, fn ($query, $search) => $query->where(function ($inner) use ($search) {
                 $inner->where('subject', 'like', "%{$search}%")
                     ->orWhere('body', 'like', "%{$search}%");
-            }))
-            ->orderByRaw('CASE WHEN completed_at IS NULL AND due_at IS NOT NULL THEN 0 ELSE 1 END')
-            ->orderBy('due_at')
-            ->orderByDesc('created_at')
+            }));
+
+        if ($sort === 'due_at' && ! in_array($status, ['done'], true)) {
+            $query->orderByRaw('CASE WHEN completed_at IS NULL AND due_at IS NOT NULL THEN 0 ELSE 1 END')
+                ->orderBy('due_at', $direction)
+                ->orderByDesc('created_at');
+        } else {
+            $query->orderBy($sort, $direction);
+        }
+
+        return $query
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (CrmActivity $activity) => $this->format($activity));
@@ -99,6 +126,7 @@ class ActivityService extends Service
             $days[] = [
                 'date' => $key,
                 'label' => $day->format('D M j'),
+                'is_today' => $key === now()->toDateString(),
                 'activities' => collect($activities->get($key, []))
                     ->map(fn (CrmActivity $activity) => $this->format($activity))
                     ->values()
@@ -108,6 +136,7 @@ class ActivityService extends Service
 
         return [
             'date' => $focus->toDateString(),
+            'today' => now()->toDateString(),
             'week_label' => $start->format('M j').' – '.$end->format('M j, Y'),
             'prev' => $focus->copy()->subWeek()->toDateString(),
             'next' => $focus->copy()->addWeek()->toDateString(),
@@ -133,6 +162,9 @@ class ActivityService extends Service
             'body' => $activity->body,
             'due_at' => $activity->due_at?->toIso8601String(),
             'completed_at' => $activity->completed_at?->toIso8601String(),
+            'is_overdue' => $activity->completed_at === null
+                && $activity->due_at !== null
+                && $activity->due_at->isPast(),
             'lead_id' => $activity->lead_id,
             'lead_name' => $activity->lead?->name,
             'customer_id' => $activity->customer_id,

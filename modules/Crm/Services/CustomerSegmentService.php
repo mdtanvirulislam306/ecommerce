@@ -11,18 +11,32 @@ use Modules\Crm\Models\CustomerSegment;
 
 class CustomerSegmentService extends Service
 {
-    public function listPaginated(?string $search = null, int $perPage = 25): LengthAwarePaginator
+    /**
+     * @param  array{search?: string|null, is_active?: string|null, sort?: string|null, direction?: string|null, per_page?: int}  $filters
+     */
+    public function listPaginated(array $filters = []): LengthAwarePaginator
     {
-        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
+        $perPage = in_array((int) ($filters['per_page'] ?? 25), [10, 25, 50, 100], true)
+            ? (int) $filters['per_page']
+            : 25;
+        $sort = in_array($filters['sort'] ?? '', ['name', 'code', 'sort_order', 'customers_count'], true)
+            ? $filters['sort']
+            : 'sort_order';
+        $direction = ($filters['direction'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
 
         return CustomerSegment::query()
+            ->with('customers:id')
             ->withCount('customers')
-            ->when($search, fn ($query, $search) => $query->where(function ($inner) use ($search) {
+            ->when($filters['search'] ?? null, fn ($query, $search) => $query->where(function ($inner) use ($search) {
                 $inner->where('name', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%");
             }))
-            ->orderBy('sort_order')
-            ->orderBy('name')
+            ->when(
+                in_array($filters['is_active'] ?? '', ['0', '1'], true),
+                fn ($query) => $query->where('is_active', $filters['is_active'] === '1'),
+            )
+            ->orderBy($sort, $direction)
+            ->when($sort !== 'name', fn ($query) => $query->orderBy('name'))
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (CustomerSegment $segment) => [
@@ -33,7 +47,7 @@ class CustomerSegmentService extends Service
                 'is_active' => $segment->is_active,
                 'sort_order' => $segment->sort_order,
                 'customers_count' => $segment->customers_count,
-                'customer_ids' => $segment->customers()->pluck('customers.id')->all(),
+                'customer_ids' => $segment->customers->pluck('id')->all(),
             ]);
     }
 
@@ -51,6 +65,26 @@ class CustomerSegmentService extends Service
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'code' => $customer->code,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, code: string, customers_count: int}>
+     */
+    public function audienceOptions(): array
+    {
+        return CustomerSegment::query()
+            ->where('is_active', true)
+            ->withCount('customers')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code'])
+            ->map(fn (CustomerSegment $segment) => [
+                'id' => $segment->id,
+                'name' => $segment->name,
+                'code' => $segment->code,
+                'customers_count' => $segment->customers_count,
             ])
             ->all();
     }

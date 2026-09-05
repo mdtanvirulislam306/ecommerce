@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Crm\Models\Customer;
 use Modules\Sales\Enums\SalesOrderStatus;
 
 class SalesOrder extends Model
@@ -13,6 +14,7 @@ class SalesOrder extends Model
     protected $fillable = [
         'number',
         'status',
+        'customer_id',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -38,6 +40,11 @@ class SalesOrder extends Model
             'confirmed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function items(): HasMany

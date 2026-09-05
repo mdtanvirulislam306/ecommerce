@@ -17,13 +17,15 @@ class SalesSeeder extends Seeder
         $product = DB::table('products')
             ->where('status', '!=', 'archived')
             ->where('type', 'simple')
-            ->orderBy('id')
-            ->first();
+            ->where('sku', 'BB-TEA-500')
+            ->first()
+            ?? DB::table('products')->where('status', '!=', 'archived')->where('type', 'simple')->orderBy('id')->first();
 
         $warehouse = DB::table('warehouses')->where('is_default', true)->first()
             ?? DB::table('warehouses')->orderBy('id')->first();
 
-        $group = DB::table('customer_groups')->where('code', 'retail')->first();
+        $customer = DB::table('customers')->where('email', 'buyer@acme.example')->first()
+            ?? DB::table('customers')->where('code', 'CUS-00001')->first();
 
         if ($product === null || $warehouse === null) {
             return;
@@ -31,12 +33,14 @@ class SalesSeeder extends Seeder
 
         try {
             app(SalesOrderService::class)->create([
-                'customer_name' => 'Walk-in Customer',
-                'customer_email' => 'walkin@example.com',
-                'customer_phone' => '01700000000',
-                'customer_group_id' => $group?->id,
+                'customer_id' => $customer?->id,
+                'customer_name' => $customer->name ?? 'Walk-in Customer',
+                'customer_email' => $customer->email ?? 'walkin@example.com',
+                'customer_phone' => $customer->phone ?? '01700000000',
+                'customer_group_id' => $customer->customer_group_id
+                    ?? DB::table('customer_groups')->where('code', 'retail')->value('id'),
                 'warehouse_id' => $warehouse->id,
-                'notes' => 'Sample pending order from seeder',
+                'notes' => 'Sample pending order from seeder (CRM-linked)',
                 'status' => 'pending',
                 'items' => [
                     [

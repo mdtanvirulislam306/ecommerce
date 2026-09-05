@@ -3,6 +3,7 @@
 namespace Modules\Crm\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,12 +19,26 @@ class LeadSourceController extends Controller
     {
         $perPage = (int) $request->input('per_page', 25);
         $search = $request->string('search')->trim()->toString();
+        $isActive = $request->string('is_active')->toString();
+        $sort = $request->string('sort')->toString() ?: 'sort_order';
+        $direction = $request->string('direction')->toString() ?: 'asc';
+
+        $filters = [
+            'search' => $search ?: null,
+            'is_active' => in_array($isActive, ['0', '1'], true) ? $isActive : null,
+            'sort' => $sort,
+            'direction' => $direction,
+            'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
+        ];
 
         return Inertia::render('Crm/LeadSources/Index', [
-            'sources' => $service->listPaginated($search ?: null, $perPage),
+            'sources' => $service->listPaginated($filters),
             'filters' => [
                 'search' => $search,
-                'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
+                'is_active' => $filters['is_active'] ?? '',
+                'sort' => $sort,
+                'direction' => $direction,
+                'per_page' => $filters['per_page'],
             ],
             'perPageOptions' => [10, 25, 50, 100],
         ]);
@@ -36,7 +51,7 @@ class LeadSourceController extends Controller
         return back()->with('success', 'Lead source created.');
     }
 
-    public function quickStore(StoreLeadSourceRequest $request, LeadSourceService $service): \Illuminate\Http\JsonResponse
+    public function quickStore(StoreLeadSourceRequest $request, LeadSourceService $service): JsonResponse
     {
         $source = $service->create($request->validated());
 

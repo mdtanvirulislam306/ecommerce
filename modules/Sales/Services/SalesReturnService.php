@@ -67,12 +67,14 @@ class SalesReturnService extends Service
             }
 
             $customerName = $data['customer_name'] ?? null;
+            $customerId = $data['customer_id'] ?? null;
             $warehouseId = $data['warehouse_id'] ?? null;
             $currency = 'BDT';
 
             if ($invoiceId) {
                 $invoice = SalesInvoice::query()->with('items')->findOrFail($invoiceId);
                 $customerName ??= $invoice->customer_name;
+                $customerId ??= $invoice->customer_id;
                 $currency = $invoice->currency;
                 $orderId ??= $invoice->sales_order_id;
             }
@@ -80,6 +82,7 @@ class SalesReturnService extends Service
             if ($orderId) {
                 $order = SalesOrder::query()->findOrFail($orderId);
                 $customerName ??= $order->customer_name;
+                $customerId ??= $order->customer_id;
                 $warehouseId ??= $order->warehouse_id;
                 $currency = $order->currency;
             }
@@ -93,6 +96,7 @@ class SalesReturnService extends Service
                 'sales_order_id' => $orderId,
                 'status' => SalesReturnStatus::Draft,
                 'warehouse_id' => $warehouseId,
+                'customer_id' => $customerId,
                 'customer_name' => $customerName,
                 'currency' => $totals['currency'],
                 'subtotal' => $totals['subtotal'],

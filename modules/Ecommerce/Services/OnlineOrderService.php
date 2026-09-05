@@ -9,6 +9,7 @@ use App\Core\Support\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\Crm\Services\CustomerService;
 use Modules\Ecommerce\Enums\OnlineOrderStatus;
 use Modules\Ecommerce\Enums\PaymentMethod;
 use Modules\Ecommerce\Models\OnlineOrder;
@@ -19,6 +20,7 @@ class OnlineOrderService extends Service
     public function __construct(
         private readonly StockAvailability $stock,
         private readonly CartService $cart,
+        private readonly CustomerService $customers,
     ) {}
 
     /**
@@ -97,9 +99,17 @@ class OnlineOrderService extends Service
             $warehouseId = DB::table('warehouses')->where('is_default', true)->value('id')
                 ?? DB::table('warehouses')->orderBy('id')->value('id');
 
+            $customer = $this->customers->matchOrCreateFromContact([
+                'name' => $checkout['customer_name'],
+                'email' => $checkout['customer_email'] ?? null,
+                'phone' => $checkout['customer_phone'] ?? null,
+                'address' => $checkout['shipping_address'] ?? null,
+            ]);
+
             $order = OnlineOrder::query()->create([
                 'number' => $this->nextNumber(),
                 'status' => OnlineOrderStatus::Pending,
+                'customer_id' => $customer->id,
                 'customer_name' => $checkout['customer_name'],
                 'customer_email' => $checkout['customer_email'] ?? null,
                 'customer_phone' => $checkout['customer_phone'] ?? null,
@@ -249,6 +259,7 @@ class OnlineOrderService extends Service
 
         return [
             ...$this->formatList($order),
+            'customer_id' => $order->customer_id,
             'customer_email' => $order->customer_email,
             'customer_phone' => $order->customer_phone,
             'shipping_address' => $order->shipping_address,
@@ -282,6 +293,7 @@ class OnlineOrderService extends Service
             'status' => $order->status->value,
             'status_label' => $order->status->label(),
             'customer_name' => $order->customer_name,
+            'customer_id' => $order->customer_id,
             'currency' => $order->currency,
             'grand_total' => (string) $order->grand_total,
             'items_count' => $order->items_count ?? $order->items()->count(),

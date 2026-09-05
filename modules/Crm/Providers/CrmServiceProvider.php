@@ -10,6 +10,7 @@ class CrmServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'crm');
     }
 
     public static function registerRoutes(): void

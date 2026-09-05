@@ -8,6 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Modules\Crm\Services\CustomerService;
 use Modules\Sales\Enums\QuotationStatus;
 use Modules\Sales\Enums\SalesOrderStatus;
 use Modules\Sales\Models\SalesQuotation;
@@ -18,6 +19,7 @@ class QuotationService extends Service
     public function __construct(
         private readonly PriceResolver $prices,
         private readonly SalesOrderService $orders,
+        private readonly CustomerService $customers,
     ) {}
 
     public function listPaginated(
@@ -59,6 +61,8 @@ class QuotationService extends Service
     public function create(array $data, ?int $userId = null): SalesQuotation
     {
         return DB::transaction(function () use ($data, $userId) {
+            $data = $this->customers->applySnapshot($data);
+
             $status = QuotationStatus::tryFrom($data['status'] ?? QuotationStatus::Draft->value)
                 ?? QuotationStatus::Draft;
 
@@ -78,6 +82,7 @@ class QuotationService extends Service
             $quotation = SalesQuotation::query()->create([
                 'number' => $this->nextNumber(),
                 'status' => $status,
+                'customer_id' => $data['customer_id'] ?? null,
                 'customer_name' => $data['customer_name'],
                 'customer_email' => $data['customer_email'] ?? null,
                 'customer_phone' => $data['customer_phone'] ?? null,
@@ -137,7 +142,17 @@ class QuotationService extends Service
                 ]);
             }
 
+            $data = $this->customers->applySnapshot([
+                ...$data,
+                'customer_id' => array_key_exists('customer_id', $data) ? $data['customer_id'] : $quotation->customer_id,
+                'customer_name' => $data['customer_name'] ?? $quotation->customer_name,
+                'customer_email' => array_key_exists('customer_email', $data) ? $data['customer_email'] : $quotation->customer_email,
+                'customer_phone' => array_key_exists('customer_phone', $data) ? $data['customer_phone'] : $quotation->customer_phone,
+                'customer_group_id' => array_key_exists('customer_group_id', $data) ? $data['customer_group_id'] : $quotation->customer_group_id,
+            ]);
+
             $payload = [
+                'customer_id' => $data['customer_id'] ?? $quotation->customer_id,
                 'customer_name' => $data['customer_name'] ?? $quotation->customer_name,
                 'customer_email' => array_key_exists('customer_email', $data) ? $data['customer_email'] : $quotation->customer_email,
                 'customer_phone' => array_key_exists('customer_phone', $data) ? $data['customer_phone'] : $quotation->customer_phone,
@@ -215,6 +230,7 @@ class QuotationService extends Service
             }
 
             $order = $this->orders->create([
+                'customer_id' => $quotation->customer_id,
                 'customer_name' => $quotation->customer_name,
                 'customer_email' => $quotation->customer_email,
                 'customer_phone' => $quotation->customer_phone,
@@ -252,6 +268,7 @@ class QuotationService extends Service
 
         return [
             ...$this->formatForList($quotation),
+            'customer_id' => $quotation->customer_id,
             'customer_email' => $quotation->customer_email,
             'customer_phone' => $quotation->customer_phone,
             'customer_group_id' => $quotation->customer_group_id,
@@ -289,6 +306,7 @@ class QuotationService extends Service
             'status' => $quotation->status->value,
             'status_label' => $quotation->status->label(),
             'customer_name' => $quotation->customer_name,
+            'customer_id' => $quotation->customer_id,
             'currency' => $quotation->currency,
             'subtotal' => (string) $quotation->subtotal,
             'grand_total' => (string) $quotation->grand_total,

@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\Crm\Enums\LeadStage;
 
 class Lead extends Model
@@ -42,6 +43,19 @@ class Lead extends Model
     public function activities(): HasMany
     {
         return $this->hasMany(CrmActivity::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * Earliest incomplete activity with a due date (overdue first by chronological min).
+     */
+    public function nextAction(): HasOne
+    {
+        return $this->hasOne(CrmActivity::class)->ofMany(
+            ['due_at' => 'min'],
+            function ($query) {
+                $query->whereNull('completed_at')->whereNotNull('due_at');
+            },
+        );
     }
 
     public function convertedCustomer(): BelongsTo

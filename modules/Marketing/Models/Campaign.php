@@ -5,6 +5,7 @@ namespace Modules\Marketing\Models;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Crm\Models\CustomerSegment;
 use Modules\Marketing\Enums\CampaignChannel;
 use Modules\Marketing\Enums\CampaignStatus;
 
@@ -21,6 +22,7 @@ class Campaign extends Model
         'scheduled_at',
         'sent_at',
         'audience_count',
+        'customer_segment_id',
         'created_by',
     ];
 
@@ -37,5 +39,10 @@ class Campaign extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function customerSegment(): BelongsTo
+    {
+        return $this->belongsTo(CustomerSegment::class, 'customer_segment_id');
     }
 }

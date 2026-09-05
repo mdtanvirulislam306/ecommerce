@@ -21,6 +21,7 @@ class SegmentController extends Controller
                 $request->string('search')->trim()->toString() ?: null,
                 $request->integer('per_page', 25),
             ),
+            'crmSegments' => $segments->crmSegmentOptions(),
             'filters' => [
                 'search' => $request->string('search')->toString(),
                 'per_page' => $request->integer('per_page', 25),

@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CustomerPicker from '@/Components/Admin/CustomerPicker.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -11,11 +12,13 @@ import { reactive } from 'vue';
 const props = defineProps({
     quotation: { type: Object, required: true },
     productOptions: { type: Array, default: () => [] },
+    customers: { type: Array, default: () => [] },
     customerGroups: { type: Array, default: () => [] },
     warehouses: { type: Array, default: () => [] },
 });
 
 const form = useForm({
+    customer_id: props.quotation.customer_id || '',
     customer_name: props.quotation.customer_name,
     customer_email: props.quotation.customer_email || '',
     customer_phone: props.quotation.customer_phone || '',
@@ -30,6 +33,18 @@ const form = useForm({
         quantity: Number(item.quantity),
     })),
 });
+
+const applyCustomer = (customer) => {
+    if (!customer) {
+        return;
+    }
+    form.customer_name = customer.name;
+    form.customer_email = customer.email || '';
+    form.customer_phone = customer.phone || '';
+    if (customer.customer_group_id) {
+        form.customer_group_id = customer.customer_group_id;
+    }
+};
 
 const variantsByProduct = reactive({});
 
@@ -77,9 +92,16 @@ const submit = () => {
 
         <form class="space-y-6" @submit.prevent="submit">
             <section class="admin-card grid gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                    <InputLabel value="CRM customer" />
+                    <div class="mt-1">
+                        <CustomerPicker v-model="form.customer_id" :customers="customers" @picked="applyCustomer" />
+                    </div>
+                    <InputError class="mt-1" :message="form.errors.customer_id" />
+                </div>
                 <div>
                     <InputLabel value="Customer name" />
-                    <TextInput v-model="form.customer_name" class="mt-1 block w-full" required />
+                    <TextInput v-model="form.customer_name" class="mt-1 block w-full" :required="!form.customer_id" />
                     <InputError class="mt-1" :message="form.errors.customer_name" />
                 </div>
                 <div>

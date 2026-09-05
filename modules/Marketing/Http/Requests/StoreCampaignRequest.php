@@ -21,6 +21,7 @@ class StoreCampaignRequest extends FormRequest
             'scheduled_at' => $this->input('scheduled_at') ?: null,
             'channel' => $this->input('channel') ?: CampaignChannel::Email->value,
             'audience_count' => $this->input('audience_count') ?: 0,
+            'customer_segment_id' => $this->input('customer_segment_id') ?: null,
         ]);
     }
 
@@ -36,6 +37,7 @@ class StoreCampaignRequest extends FormRequest
             'body' => ['nullable', 'string', 'max:20000'],
             'scheduled_at' => ['nullable', 'date'],
             'audience_count' => ['nullable', 'integer', 'min:0'],
+            'customer_segment_id' => ['nullable', 'integer', 'exists:customer_segments,id'],
         ];
     }
 }

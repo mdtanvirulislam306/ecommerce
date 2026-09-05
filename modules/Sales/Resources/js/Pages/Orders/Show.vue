@@ -67,6 +67,13 @@ const cancelOrder = () => {
                     <p class="font-medium text-brand-navy">{{ order.customer_name }}</p>
                     <p v-if="order.customer_email" class="text-gray-500">{{ order.customer_email }}</p>
                     <p v-if="order.customer_phone" class="text-gray-500">{{ order.customer_phone }}</p>
+                    <Link
+                        v-if="order.customer_id"
+                        :href="route('crm.customers.show', order.customer_id)"
+                        class="mt-1 inline-block text-xs font-medium text-brand-orange hover:underline"
+                    >
+                        Open in CRM
+                    </Link>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Created</p>

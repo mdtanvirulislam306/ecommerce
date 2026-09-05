@@ -16,6 +16,7 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) },
     channels: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
+    crmSegments: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -33,16 +34,28 @@ const form = useForm({
     subject: '',
     body: '',
     audience_count: 0,
+    customer_segment_id: '',
     scheduled_at: '',
 });
 
 const deleteForm = useForm({});
+const linkedToCrm = computed(() => Boolean(form.customer_segment_id));
+
+const applyCrmSegment = () => {
+    const match = props.crmSegments.find((row) => String(row.id) === String(form.customer_segment_id));
+    if (match) {
+        form.audience_count = match.customers_count || 0;
+    }
+};
+
+watch(() => form.customer_segment_id, applyCrmSegment);
 
 const openCreate = () => {
     editing.value = null;
     form.reset();
     form.channel = 'email';
     form.status = 'draft';
+    form.customer_segment_id = '';
     form.clearErrors();
     showModal.value = true;
 };
@@ -55,6 +68,7 @@ const openEdit = (row) => {
     form.subject = row.subject || '';
     form.body = row.body || '';
     form.audience_count = row.audience_count || 0;
+    form.customer_segment_id = row.customer_segment_id || '';
     form.scheduled_at = row.scheduled_at ? row.scheduled_at.slice(0, 16) : '';
     form.clearErrors();
     showModal.value = true;
@@ -112,7 +126,10 @@ watch(search, (value) => {
                         <td class="py-2 font-medium text-brand-navy">{{ row.name }}</td>
                         <td class="py-2">{{ row.channel_label }}</td>
                         <td class="py-2">{{ row.status_label }}</td>
-                        <td class="py-2">{{ row.audience_count }}</td>
+                        <td class="py-2">
+                            <span>{{ row.audience_count }}</span>
+                            <span v-if="row.customer_segment_name" class="ml-1 text-xs text-gray-400">({{ row.customer_segment_name }})</span>
+                        </td>
                         <td class="py-2 text-right space-x-2">
                             <button
                                 v-if="row.status !== 'sent'"
@@ -162,8 +179,23 @@ watch(search, (value) => {
                     <textarea v-model="form.body" rows="5" class="mt-1 block w-full rounded-md border-gray-300 text-sm" />
                 </div>
                 <div>
-                    <InputLabel value="Audience count" />
-                    <TextInput v-model="form.audience_count" type="number" min="0" class="mt-1 block w-full" />
+                    <InputLabel value="CRM audience segment" />
+                    <select v-model="form.customer_segment_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
+                        <option value="">Manual audience count</option>
+                        <option v-for="seg in crmSegments" :key="seg.id" :value="seg.id">
+                            {{ seg.name }} ({{ seg.customers_count }})
+                        </option>
+                    </select>
+                </div>
+                <div>
+                    <InputLabel :value="linkedToCrm ? 'Audience count (from CRM)' : 'Audience count'" />
+                    <TextInput
+                        v-model="form.audience_count"
+                        type="number"
+                        min="0"
+                        class="mt-1 block w-full"
+                        :disabled="linkedToCrm"
+                    />
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <SecondaryButton type="button" @click="showModal = false">Cancel</SecondaryButton>

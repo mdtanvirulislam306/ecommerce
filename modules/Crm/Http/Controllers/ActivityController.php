@@ -23,18 +23,34 @@ class ActivityController extends Controller
         $type = $request->filled('type')
             ? ActivityType::tryFrom($request->string('type')->toString())
             : null;
+        $status = $request->string('status')->toString();
+        $sort = $request->string('sort')->toString() ?: 'due_at';
+        $direction = $request->string('direction')->toString() ?: 'asc';
         $followUps = $request->routeIs('crm.activities.follow-ups')
             || $request->boolean('follow_ups');
 
+        $filters = [
+            'search' => $search ?: null,
+            'type' => $type,
+            'status' => in_array($status, ['open', 'done', 'overdue'], true) ? $status : null,
+            'follow_ups' => $followUps,
+            'sort' => $sort,
+            'direction' => $direction,
+            'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
+        ];
+
         return Inertia::render('Crm/Activities/Index', [
-            'activities' => $service->listPaginated($search ?: null, $type, $followUps, $perPage),
+            'activities' => $service->listPaginated($filters),
             'typeOptions' => $service->typeOptions(),
-            'leadOptions' => app(LeadService::class)->listPaginated(perPage: 50)->items(),
-            'customerOptions' => app(CustomerService::class)->listPaginated(perPage: 50)->items(),
+            'leadOptions' => app(LeadService::class)->optionList(),
+            'customerOptions' => app(CustomerService::class)->listPaginated(['per_page' => 50])->items(),
             'filters' => [
                 'search' => $search,
                 'type' => $type?->value,
-                'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
+                'status' => $filters['status'] ?? '',
+                'sort' => $sort,
+                'direction' => $direction,
+                'per_page' => $filters['per_page'],
             ],
             'listTitle' => $followUps ? 'Follow-ups' : 'All Activities',
             'perPageOptions' => [10, 25, 50, 100],

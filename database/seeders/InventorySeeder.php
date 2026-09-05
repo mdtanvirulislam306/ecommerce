@@ -38,7 +38,7 @@ class InventorySeeder extends Seeder
             ->where('status', '!=', 'archived')
             ->where('type', 'simple')
             ->orderBy('id')
-            ->limit(5)
+            ->limit(20)
             ->get(['id']);
 
         if ($products->isEmpty()) {

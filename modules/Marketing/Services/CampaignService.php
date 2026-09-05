@@ -2,8 +2,12 @@
 
 namespace Modules\Marketing\Services;
 
+use App\Core\Module\ModuleManager;
 use App\Core\Support\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Schema;
+use Modules\Crm\Models\CustomerSegment;
+use Modules\Crm\Services\CustomerSegmentService;
 use Modules\Marketing\Enums\CampaignChannel;
 use Modules\Marketing\Enums\CampaignStatus;
 use Modules\Marketing\Enums\DiscountType;
@@ -23,6 +27,7 @@ class CampaignService extends Service
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
 
         return Campaign::query()
+            ->with(['customerSegment' => fn ($query) => $query->withCount('customers')])
             ->when($channel, fn ($query) => $query->where('channel', $channel))
             ->when($search, fn ($query, $search) => $query->where(function ($inner) use ($search) {
                 $inner->where('name', 'like', "%{$search}%")
@@ -94,6 +99,8 @@ class CampaignService extends Service
      */
     public function create(array $data, ?int $userId = null): Campaign
     {
+        [$customerSegmentId, $audienceCount] = $this->resolveAudience($data);
+
         return Campaign::query()->create([
             'name' => $data['name'],
             'channel' => $data['channel'] ?? CampaignChannel::Email->value,
@@ -101,7 +108,8 @@ class CampaignService extends Service
             'subject' => $data['subject'] ?? null,
             'body' => $data['body'] ?? null,
             'scheduled_at' => $data['scheduled_at'] ?? null,
-            'audience_count' => (int) ($data['audience_count'] ?? 0),
+            'audience_count' => $audienceCount,
+            'customer_segment_id' => $customerSegmentId,
             'created_by' => $userId,
         ]);
     }
@@ -111,6 +119,11 @@ class CampaignService extends Service
      */
     public function update(Campaign $campaign, array $data): Campaign
     {
+        [$customerSegmentId, $audienceCount] = $this->resolveAudience(array_merge([
+            'customer_segment_id' => $campaign->customer_segment_id,
+            'audience_count' => $campaign->audience_count,
+        ], $data));
+
         $campaign->update([
             'name' => $data['name'] ?? $campaign->name,
             'channel' => $data['channel'] ?? $campaign->channel,
@@ -118,10 +131,11 @@ class CampaignService extends Service
             'subject' => $data['subject'] ?? $campaign->subject,
             'body' => $data['body'] ?? $campaign->body,
             'scheduled_at' => $data['scheduled_at'] ?? $campaign->scheduled_at,
-            'audience_count' => $data['audience_count'] ?? $campaign->audience_count,
+            'audience_count' => $audienceCount,
+            'customer_segment_id' => $customerSegmentId,
         ]);
 
-        return $campaign->fresh();
+        return $campaign->fresh(['customerSegment']);
     }
 
     public function markSent(Campaign $campaign): Campaign
@@ -144,6 +158,11 @@ class CampaignService extends Service
      */
     public function format(Campaign $campaign): array
     {
+        $crm = $campaign->customerSegment;
+        $audience = $crm !== null
+            ? (int) ($crm->customers_count ?? $crm->customers()->count())
+            : (int) $campaign->audience_count;
+
         return [
             'id' => $campaign->id,
             'name' => $campaign->name,
@@ -155,8 +174,46 @@ class CampaignService extends Service
             'body' => $campaign->body,
             'scheduled_at' => $campaign->scheduled_at?->toIso8601String(),
             'sent_at' => $campaign->sent_at?->toIso8601String(),
-            'audience_count' => $campaign->audience_count,
+            'audience_count' => $audience,
+            'customer_segment_id' => $campaign->customer_segment_id,
+            'customer_segment_name' => $crm?->name,
             'created_at' => $campaign->created_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * @return list<array{id: int, name: string, code: string, customers_count: int}>
+     */
+    public function crmSegmentOptions(): array
+    {
+        if (! app(ModuleManager::class)->enabled('crm') || ! Schema::hasTable('customer_segments')) {
+            return [];
+        }
+
+        return app(CustomerSegmentService::class)->audienceOptions();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{0: int|null, 1: int}
+     */
+    private function resolveAudience(array $data): array
+    {
+        $customerSegmentId = array_key_exists('customer_segment_id', $data)
+            ? (! empty($data['customer_segment_id']) ? (int) $data['customer_segment_id'] : null)
+            : null;
+        $audienceCount = (int) ($data['audience_count'] ?? 0);
+
+        if ($customerSegmentId
+            && app(ModuleManager::class)->enabled('crm')
+            && Schema::hasTable('customer_segments')
+        ) {
+            $crm = CustomerSegment::query()->withCount('customers')->find($customerSegmentId);
+            if ($crm) {
+                return [$crm->id, (int) $crm->customers_count];
+            }
+        }
+
+        return [null, $audienceCount];
     }
 }

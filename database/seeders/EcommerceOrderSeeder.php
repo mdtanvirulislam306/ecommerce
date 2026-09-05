@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Core\Contracts\PriceResolver;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Modules\Crm\Services\CustomerService;
 use Modules\Ecommerce\Enums\OnlineOrderStatus;
 use Modules\Ecommerce\Enums\PaymentMethod;
 use Modules\Ecommerce\Models\OnlineOrder;
@@ -20,25 +21,13 @@ class EcommerceOrderSeeder extends Seeder
         $product = DB::table('products')
             ->where('publication_status', 'published')
             ->where('status', '!=', 'archived')
-            ->orderBy('id')
-            ->first();
-
-        if ($product === null) {
-            $product = DB::table('products')->orderBy('id')->first();
-
-            if ($product !== null) {
-                DB::table('products')->where('id', $product->id)->update([
-                    'status' => 'active',
-                    'publication_status' => 'published',
-                ]);
-                $product = DB::table('products')->where('id', $product->id)->first();
-            }
-        } else {
-            DB::table('products')->where('id', $product->id)->update([
-                'status' => 'active',
-                'publication_status' => 'published',
-            ]);
-        }
+            ->where('sku', 'BB-OIL-5')
+            ->first()
+            ?? DB::table('products')
+                ->where('publication_status', 'published')
+                ->where('status', '!=', 'archived')
+                ->orderBy('id')
+                ->first();
 
         if ($product === null) {
             return;
@@ -53,21 +42,29 @@ class EcommerceOrderSeeder extends Seeder
         $warehouseId = DB::table('warehouses')->where('is_default', true)->value('id')
             ?? DB::table('warehouses')->orderBy('id')->value('id');
 
+        $customer = app(CustomerService::class)->matchOrCreateFromContact([
+            'name' => 'Online Guest',
+            'email' => 'guest@example.com',
+            'phone' => '01710000000',
+            'address' => "House 1, Road 2\nDhaka",
+        ]);
+
         $price = (float) $resolved['price'];
         $currency = $resolved['currency'] ?? 'BDT';
 
         $order = OnlineOrder::query()->create([
             'number' => 'WEB-'.now()->format('Ymd').'-0001',
             'status' => OnlineOrderStatus::Pending,
-            'customer_name' => 'Online Guest',
-            'customer_email' => 'guest@example.com',
-            'customer_phone' => '01710000000',
-            'shipping_address' => "House 1, Road 2\nDhaka",
+            'customer_id' => $customer->id,
+            'customer_name' => $customer->name,
+            'customer_email' => $customer->email,
+            'customer_phone' => $customer->phone,
+            'shipping_address' => $customer->address ?? "House 1, Road 2\nDhaka",
             'payment_method' => PaymentMethod::Cod,
             'currency' => $currency,
             'subtotal' => number_format($price, 4, '.', ''),
             'grand_total' => number_format($price, 4, '.', ''),
-            'notes' => 'Sample web order from seeder',
+            'notes' => 'Sample web order from seeder (CRM-linked)',
             'warehouse_id' => $warehouseId,
         ]);
 

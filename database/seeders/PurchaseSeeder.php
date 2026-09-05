@@ -33,8 +33,13 @@ class PurchaseSeeder extends Seeder
         $product = DB::table('products')
             ->where('status', '!=', 'archived')
             ->where('type', 'simple')
-            ->orderBy('id')
-            ->first();
+            ->where('sku', 'BB-RICE-25')
+            ->first()
+            ?? DB::table('products')
+                ->where('status', '!=', 'archived')
+                ->where('type', 'simple')
+                ->orderBy('id')
+                ->first();
 
         $warehouse = DB::table('warehouses')->where('is_default', true)->first()
             ?? DB::table('warehouses')->orderBy('id')->first();

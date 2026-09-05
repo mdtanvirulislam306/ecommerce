@@ -1,31 +1,50 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CustomerPicker from '@/Components/Admin/CustomerPicker.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, reactive, ref, watch } from 'vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed, reactive, watch } from 'vue';
 
 const props = defineProps({
     productOptions: { type: Array, default: () => [] },
+    customers: { type: Array, default: () => [] },
     customerGroups: { type: Array, default: () => [] },
     warehouses: { type: Array, default: () => [] },
+    prefillCustomer: { type: Object, default: null },
 });
+
+const page = usePage();
+const flash = computed(() => page.props.flash);
 
 const defaultWarehouse = props.warehouses.find((w) => w.is_default)?.id ?? props.warehouses[0]?.id ?? '';
 
 const form = useForm({
-    customer_name: '',
-    customer_email: '',
-    customer_phone: '',
-    customer_group_id: '',
+    customer_id: props.prefillCustomer?.id ?? '',
+    customer_name: props.prefillCustomer?.name ?? '',
+    customer_email: props.prefillCustomer?.email ?? '',
+    customer_phone: props.prefillCustomer?.phone ?? '',
+    customer_group_id: props.prefillCustomer?.customer_group_id ?? '',
     warehouse_id: defaultWarehouse,
     notes: '',
     status: 'pending',
     items: [{ product_id: '', product_variant_id: '', quantity: 1 }],
 });
+
+const applyCustomer = (customer) => {
+    if (!customer) {
+        return;
+    }
+    form.customer_name = customer.name;
+    form.customer_email = customer.email || '';
+    form.customer_phone = customer.phone || '';
+    if (customer.customer_group_id) {
+        form.customer_group_id = customer.customer_group_id;
+    }
+};
 
 const lineMeta = reactive({});
 const variantsByProduct = reactive({});
@@ -97,16 +116,35 @@ const submit = (status) => {
     <Head title="New Sales Order" />
 
     <AdminLayout title="New Sales Order">
-        <div class="mb-4">
+        <div v-if="flash?.success" class="mb-4 rounded-lg bg-brand-teal/10 px-4 py-3 text-sm text-brand-navy">
+            {{ flash.success }}
+        </div>
+
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <Link :href="route('sales.orders.all')" class="text-sm text-brand-navy hover:text-brand-orange">← Orders</Link>
+            <p v-if="prefillCustomer" class="text-sm text-gray-500">
+                Prefilling <span class="font-medium text-brand-navy">{{ prefillCustomer.name }}</span> from CRM
+            </p>
         </div>
 
         <form class="space-y-6" @submit.prevent="submit('pending')">
             <section class="admin-card grid gap-4 sm:grid-cols-2">
                 <h2 class="sm:col-span-2 text-sm font-semibold text-brand-navy">Customer</h2>
+                <div class="sm:col-span-2">
+                    <InputLabel value="CRM customer" />
+                    <div class="mt-1">
+                        <CustomerPicker
+                            v-model="form.customer_id"
+                            :customers="customers"
+                            @picked="applyCustomer"
+                        />
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">Pick a CRM customer to fill name, contact, and price group. Leave empty for walk-in.</p>
+                    <InputError class="mt-1" :message="form.errors.customer_id" />
+                </div>
                 <div>
                     <InputLabel value="Customer name" />
-                    <TextInput v-model="form.customer_name" class="mt-1 block w-full" required />
+                    <TextInput v-model="form.customer_name" class="mt-1 block w-full" :required="!form.customer_id" />
                     <InputError class="mt-1" :message="form.errors.customer_name" />
                 </div>
                 <div>

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Modules\Catalog\Models\Product;
+use Modules\Commerce\Models\Courier;
 use Modules\Commerce\Models\CustomerGroup;
 use Modules\Commerce\Models\PriceList;
 use Modules\Commerce\Models\PriceListItem;
@@ -76,6 +77,15 @@ class CommerceSeeder extends Seeder
                 'price_list_id' => $dealer->id,
                 'is_active' => true,
                 'sort_order' => 3,
+            ],
+        );
+
+        Courier::query()->firstOrCreate(
+            ['code' => 'PATHAO'],
+            [
+                'name' => 'Pathao',
+                'tracking_url_template' => 'https://merchant.pathao.com/tracking/{tracking}',
+                'is_active' => true,
             ],
         );
 

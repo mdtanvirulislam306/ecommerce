@@ -89,6 +89,13 @@ const printReceipt = () => {
                 <div>
                     <p class="text-xs text-gray-500">Customer</p>
                     <p class="font-medium text-brand-navy">{{ order.customer_name || 'Walk-in' }}</p>
+                    <Link
+                        v-if="order.customer_id"
+                        :href="route('crm.customers.show', order.customer_id)"
+                        class="mt-1 inline-block text-xs font-medium text-brand-orange hover:underline print:hidden"
+                    >
+                        Open in CRM
+                    </Link>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Register</p>

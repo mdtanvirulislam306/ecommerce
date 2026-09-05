@@ -23,6 +23,7 @@ class PosTerminalController extends Controller
             'register' => $registers->format($register->load('openSession')),
             'sessionOpen' => $session !== null,
             'products' => $sales->searchableProducts(limit: 40),
+            'customers' => $sales->customerOptions(),
             'stats' => $sales->overviewStats(),
         ]);
     }
