@@ -3,14 +3,16 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import MediaPicker from '@/Components/Admin/MediaPicker.vue';
 import SearchableMultiSelect from '@/Components/Admin/SearchableMultiSelect.vue';
 import SearchableSelect from '@/Components/Admin/SearchableSelect.vue';
+import VariantMatrixBuilder from '@/Components/Admin/VariantMatrixBuilder.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import { internalCodeFromName, skuFromName, slugify } from '@/utils/productIdentifiers';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 const props = defineProps({
     options: { type: Object, required: true },
@@ -19,6 +21,8 @@ const props = defineProps({
 const brands = ref([...(props.options.brands ?? [])]);
 const categories = ref([...(props.options.categories ?? [])]);
 const collections = ref([...(props.options.collections ?? [])]);
+const skuPrefix = computed(() => props.options.catalog_defaults?.sku_prefix ?? '');
+const requirements = computed(() => props.options.catalog_requirements ?? {});
 
 const form = useForm({
     type: 'simple',
@@ -46,26 +50,65 @@ const form = useForm({
     opening_stock: '',
 });
 
+const auto = reactive({
+    slug: true,
+    internal_code: true,
+    sku: true,
+    barcode: true,
+});
+
 const libraryPreviews = ref([]);
 const showMediaPicker = ref(false);
-const quickModal = ref(null); // 'category' | 'brand' | 'collection' | null
+const showVariantMediaPicker = ref(false);
+const variantMediaIndex = ref(null);
+const quickModal = ref(null);
 const quickForm = useForm({ name: '', is_active: true });
 const quickError = ref('');
+const showSeo = ref(false);
+const showIds = ref(false);
 
 const isSimple = computed(() => form.type === 'simple');
 const isVariant = computed(() => form.type === 'variant');
+const errorCount = computed(() => Object.keys(form.errors).length);
+const mediaCount = computed(() => libraryPreviews.value.length);
+const previewTitle = computed(() => form.name?.trim() || 'Untitled product');
 
-const buildVariantRow = () => ({
-    sku: '',
-    barcode: '',
-    name: '',
-    weight: '',
-    is_active: true,
-    attributes: props.options.variant_attributes.map((attr) => ({
-        attribute_id: attr.id,
-        attribute_option_id: '',
-    })),
-});
+const applyAutoFromName = (name) => {
+    if (auto.slug) form.slug = slugify(name);
+    if (auto.internal_code) form.internal_code = internalCodeFromName(name);
+    if (isSimple.value) {
+        if (auto.sku) {
+            form.sku = skuFromName(name, skuPrefix.value);
+            if (auto.barcode) form.barcode = form.sku;
+        } else if (auto.barcode && form.sku) {
+            form.barcode = form.sku;
+        }
+    }
+};
+
+watch(
+    () => form.name,
+    (name) => applyAutoFromName(name),
+);
+
+watch(
+    () => form.errors,
+    (errors) => {
+        if (errors.slug || errors.sku || errors.barcode || errors.internal_code) {
+            showIds.value = true;
+        }
+    },
+    { deep: true },
+);
+
+const lockAuto = (field) => {
+    auto[field] = false;
+};
+
+const unlockAuto = (field) => {
+    auto[field] = true;
+    applyAutoFromName(form.name);
+};
 
 const initInformationalAttributes = () => {
     form.informational_attributes = props.options.informational_attributes.map((attr) => ({
@@ -80,17 +123,12 @@ onMounted(() => initInformationalAttributes());
 watch(
     () => form.type,
     (type) => {
-        if (type === 'variant' && form.variants.length === 0) {
-            form.variants.push(buildVariantRow());
-        }
         if (type === 'simple') {
             form.variants = [];
+            applyAutoFromName(form.name);
         }
     },
 );
-
-const addVariant = () => form.variants.push(buildVariantRow());
-const removeVariant = (index) => form.variants.splice(index, 1);
 
 const openQuick = (type) => {
     quickModal.value = type;
@@ -127,15 +165,11 @@ const submitQuick = async () => {
                 ...(token ? { 'X-CSRF-TOKEN': token } : {}),
             },
             credentials: 'same-origin',
-            body: JSON.stringify({
-                name: quickForm.name,
-                is_active: true,
-            }),
+            body: JSON.stringify({ name: quickForm.name, is_active: true }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            const msg = data.errors?.name?.[0] || data.message || 'Could not create';
-            quickError.value = msg;
+            quickError.value = data.errors?.name?.[0] || data.message || 'Could not create';
             return;
         }
         const item = data.item;
@@ -174,13 +208,50 @@ const removeLibraryPreview = (id) => {
     libraryPreviews.value = libraryPreviews.value.filter((p) => p.id !== id);
 };
 
+const openVariantMediaPicker = (index) => {
+    variantMediaIndex.value = index;
+    showVariantMediaPicker.value = true;
+};
+
+const onVariantMediaSelected = (item) => {
+    const index = variantMediaIndex.value;
+    if (index === null || index === undefined) return;
+    const selected = Array.isArray(item) ? item[0] : item;
+    const variant = form.variants[index];
+    if (!variant || !selected) return;
+    variant.media_library_ids = [selected.id];
+    variant.media_previews = [selected];
+};
+
+const removeVariantMediaPreview = (index) => {
+    const variant = form.variants[index];
+    if (!variant) return;
+    variant.media_library_ids = [];
+    variant.media_previews = [];
+};
+
+const infoAttr = (id) => props.options.informational_attributes.find((a) => a.id === id);
+
 const submit = () => {
-    form.post(route('products.store'), {
-        forceFormData: true,
-        onFinish: () => {
-            form.media = [];
-        },
-    });
+    form
+        .transform((data) => ({
+            ...data,
+            variants: (data.variants || []).map((variant) => ({
+                sku: variant.sku,
+                barcode: variant.barcode,
+                name: variant.name,
+                weight: variant.weight,
+                is_active: variant.is_active,
+                attributes: variant.attributes,
+                media_library_ids: variant.media_library_ids || [],
+            })),
+        }))
+        .post(route('products.store'), {
+            forceFormData: true,
+            onFinish: () => {
+                form.media = [];
+            },
+        });
 };
 </script>
 
@@ -188,337 +259,528 @@ const submit = () => {
     <Head title="Add Product" />
 
     <AdminLayout title="Add Product">
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
-                <p class="text-sm text-gray-500">
-                    Set up identity first — categories and brands can be created inline with +.
+                <Link
+                    :href="route('products.index')"
+                    class="mb-2 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-brand-navy"
+                >
+                    <span aria-hidden="true">←</span> Products
+                </Link>
+                <h1 class="text-xl font-semibold tracking-tight text-brand-navy">Add product</h1>
+                <p class="mt-1 max-w-lg text-sm text-gray-500">
+                    Start with the name — identifiers stay unique automatically. Add media and pricing when ready.
                 </p>
             </div>
-            <Link :href="route('products.index')" class="text-sm font-medium text-brand-navy hover:text-brand-orange">
-                ← Back to products
-            </Link>
+            <div class="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-600 ring-1 ring-gray-200">
+                <span
+                    class="h-1.5 w-1.5 rounded-full"
+                    :class="isSimple ? 'bg-brand-teal' : 'bg-brand-navy'"
+                />
+                {{ isSimple ? 'Simple product' : 'Variant product' }}
+            </div>
         </div>
 
-        <form class="space-y-5" @submit.prevent="submit">
-            <section class="admin-card">
-                <h2 class="text-sm font-semibold text-brand-navy">1. Product type</h2>
-                <div class="mt-4 grid grid-cols-2 gap-3 sm:max-w-lg">
-                    <button
-                        type="button"
-                        class="rounded-xl border-2 p-4 text-left transition-all"
-                        :class="isSimple ? 'border-brand-teal bg-brand-teal/10 ring-1 ring-brand-teal/30' : 'border-gray-200 hover:border-gray-300'"
-                        @click="form.type = 'simple'"
-                    >
-                        <p class="text-sm font-semibold text-brand-navy">Simple</p>
-                        <p class="text-xs text-gray-500">Single SKU</p>
-                    </button>
-                    <button
-                        type="button"
-                        class="rounded-xl border-2 p-4 text-left transition-all"
-                        :class="isVariant ? 'border-brand-teal bg-brand-teal/10 ring-1 ring-brand-teal/30' : 'border-gray-200 hover:border-gray-300'"
-                        @click="form.type = 'variant'"
-                    >
-                        <p class="text-sm font-semibold text-brand-navy">Variant</p>
-                        <p class="text-xs text-gray-500">Multiple SKUs</p>
-                    </button>
-                </div>
-                <InputError class="mt-2" :message="form.errors.type" />
-            </section>
+        <div
+            v-if="errorCount"
+            class="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+            <span class="mt-0.5 font-semibold">{{ errorCount }}</span>
+            <p>Fix the highlighted fields below, then try again.</p>
+        </div>
 
-            <section class="admin-card space-y-4">
-                <h2 class="text-sm font-semibold text-brand-navy">2. Basic information</h2>
-                <div>
-                    <InputLabel for="name" value="Product name" />
-                    <TextInput id="name" v-model="form.name" class="mt-1 block w-full" required />
-                    <InputError class="mt-2" :message="form.errors.name" />
-                </div>
-                <div>
-                    <InputLabel for="description" value="Description" />
-                    <textarea
-                        id="description"
-                        v-model="form.description"
-                        rows="4"
-                        class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                    />
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <InputLabel for="internal_code" value="Internal code" />
-                        <TextInput id="internal_code" v-model="form.internal_code" class="mt-1 block w-full" />
-                    </div>
-                    <div>
-                        <InputLabel for="slug" value="Slug (optional)" />
-                        <TextInput id="slug" v-model="form.slug" class="mt-1 block w-full" />
-                    </div>
-                </div>
-            </section>
-
-            <section v-if="isSimple" class="admin-card space-y-4">
-                <h2 class="text-sm font-semibold text-brand-navy">3. Identifiers & pricing</h2>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <InputLabel for="sku" value="SKU" />
-                        <TextInput id="sku" v-model="form.sku" class="mt-1 block w-full" required />
-                        <InputError class="mt-2" :message="form.errors.sku" />
-                    </div>
-                    <div>
-                        <InputLabel for="barcode" value="Barcode" />
-                        <TextInput id="barcode" v-model="form.barcode" class="mt-1 block w-full" />
-                    </div>
-                    <div>
-                        <InputLabel for="selling_price" value="Selling price" />
-                        <TextInput id="selling_price" v-model="form.selling_price" type="number" min="0" step="0.01" class="mt-1 block w-full" />
-                        <p class="mt-1 text-[11px] text-gray-500">Writes to Retail price list</p>
-                    </div>
-                    <div>
-                        <InputLabel for="opening_stock" value="Opening stock" />
-                        <TextInput id="opening_stock" v-model="form.opening_stock" type="number" min="0" step="0.01" class="mt-1 block w-full" />
-                        <p class="mt-1 text-[11px] text-gray-500">Receives into Main warehouse</p>
-                    </div>
-                </div>
-            </section>
-
-            <section v-if="isVariant" class="admin-card space-y-4">
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="text-sm font-semibold text-brand-navy">3. Variants</h2>
-                    <SecondaryButton type="button" @click="addVariant">Add variant</SecondaryButton>
-                </div>
-                <div
-                    v-for="(variant, index) in form.variants"
-                    :key="index"
-                    class="space-y-3 rounded-xl border border-gray-200 p-4"
-                >
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm font-medium text-brand-navy">Variant {{ index + 1 }}</p>
-                        <button
-                            v-if="form.variants.length > 1"
-                            type="button"
-                            class="text-xs text-red-600"
-                            @click="removeVariant(index)"
-                        >
-                            Remove
-                        </button>
-                    </div>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <div>
-                            <InputLabel value="SKU" />
-                            <TextInput v-model="variant.sku" class="mt-1 block w-full" required />
+        <form class="pb-28" @submit.prevent="submit">
+            <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+                <!-- Main column -->
+                <div class="space-y-5">
+                    <!-- Type -->
+                    <section class="admin-card !p-4 sm:!p-5">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <h2 class="text-sm font-semibold text-brand-navy">Product type</h2>
+                            <p class="text-[11px] text-gray-400">Choose once — variants unlock option rows</p>
                         </div>
-                        <div>
-                            <InputLabel value="Barcode" />
-                            <TextInput v-model="variant.barcode" class="mt-1 block w-full" />
-                        </div>
-                    </div>
-                    <div v-if="options.variant_attributes.length" class="grid gap-3 sm:grid-cols-2">
-                        <div v-for="attrRow in variant.attributes" :key="attrRow.attribute_id">
-                            <InputLabel :value="options.variant_attributes.find((a) => a.id === attrRow.attribute_id)?.name" />
-                            <select
-                                v-model="attrRow.attribute_option_id"
-                                class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                        <div class="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-1.5 ring-1 ring-gray-200/80">
+                            <button
+                                type="button"
+                                class="rounded-lg px-3 py-3 text-left transition"
+                                :class="
+                                    isSimple
+                                        ? 'bg-white shadow-sm ring-1 ring-black/5'
+                                        : 'hover:bg-white/70'
+                                "
+                                @click="form.type = 'simple'"
                             >
-                                <option value="">Select…</option>
-                                <option
-                                    v-for="opt in options.variant_attributes.find((a) => a.id === attrRow.attribute_id)?.options"
-                                    :key="opt.id"
-                                    :value="opt.id"
+                                <p class="text-sm font-semibold text-brand-navy">Simple</p>
+                                <p class="mt-0.5 text-[11px] leading-snug text-gray-500">One SKU, one price, one stock</p>
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-lg px-3 py-3 text-left transition"
+                                :class="
+                                    isVariant
+                                        ? 'bg-white shadow-sm ring-1 ring-black/5'
+                                        : 'hover:bg-white/70'
+                                "
+                                @click="form.type = 'variant'"
+                            >
+                                <p class="text-sm font-semibold text-brand-navy">Variant</p>
+                                <p class="mt-0.5 text-[11px] leading-snug text-gray-500">Size / color options with own image</p>
+                            </button>
+                        </div>
+                        <InputError class="mt-2" :message="form.errors.type" />
+                    </section>
+
+                    <!-- Title -->
+                    <section class="admin-card !p-4 sm:!p-5 space-y-4">
+                        <h2 class="text-sm font-semibold text-brand-navy">Title & description</h2>
+                        <div>
+                            <InputLabel for="name" value="Product name" />
+                            <TextInput
+                                id="name"
+                                v-model="form.name"
+                                class="mt-1.5 block w-full text-base"
+                                placeholder="e.g. Organic Honey 500g"
+                                required
+                                autofocus
+                            />
+                            <InputError class="mt-1.5" :message="form.errors.name" />
+                        </div>
+                        <div>
+                            <InputLabel for="description" value="Description" />
+                            <textarea
+                                id="description"
+                                v-model="form.description"
+                                rows="4"
+                                placeholder="What customers should know…"
+                                class="mt-1.5 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                            />
+                        </div>
+                    </section>
+
+                    <!-- Pricing (simple) -->
+                    <section v-if="isSimple" class="admin-card !p-4 sm:!p-5 space-y-4">
+                        <div>
+                            <h2 class="text-sm font-semibold text-brand-navy">Pricing & stock</h2>
+                            <p class="mt-0.5 text-[11px] text-gray-400">Writes to Retail price list and Main warehouse</p>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <InputLabel for="selling_price" value="Selling price" />
+                                <div class="relative mt-1.5">
+                                    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-gray-400">৳</span>
+                                    <TextInput
+                                        id="selling_price"
+                                        v-model="form.selling_price"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        class="block w-full pl-7"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <InputLabel for="opening_stock" value="Opening stock" />
+                                <TextInput
+                                    id="opening_stock"
+                                    v-model="form.opening_stock"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    class="mt-1.5 block w-full"
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Variants -->
+                    <section v-if="isVariant" class="admin-card !p-4 sm:!p-5 space-y-4">
+                        <div>
+                            <h2 class="text-sm font-semibold text-brand-navy">Variants</h2>
+                            <p class="mt-0.5 text-[11px] text-gray-400">
+                                Choose attributes → pick values → generate the SKU matrix
+                            </p>
+                        </div>
+                        <VariantMatrixBuilder
+                            v-model="form.variants"
+                            :variant-attributes="options.variant_attributes"
+                            :product-name="form.name"
+                            :sku-prefix="skuPrefix"
+                            @open-media="openVariantMediaPicker"
+                            @remove-media="removeVariantMediaPreview"
+                        />
+                        <InputError :message="form.errors.variants" />
+                        <p v-if="isVariant && !form.variants.length" class="text-[11px] text-amber-600">
+                            Generate at least one variant before saving.
+                        </p>
+                    </section>
+
+                    <!-- Specs -->
+                    <section v-if="options.informational_attributes?.length" class="admin-card !p-4 sm:!p-5 space-y-4">
+                        <h2 class="text-sm font-semibold text-brand-navy">Specifications</h2>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div v-for="(row, index) in form.informational_attributes" :key="row.attribute_id">
+                                <InputLabel :value="infoAttr(row.attribute_id)?.name" />
+                                <select
+                                    v-if="infoAttr(row.attribute_id)?.input_type === 'select'"
+                                    v-model="row.attribute_option_id"
+                                    class="mt-1.5 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
                                 >
-                                    {{ opt.value }}
+                                    <option value="">Select…</option>
+                                    <option
+                                        v-for="opt in infoAttr(row.attribute_id)?.options"
+                                        :key="opt.id"
+                                        :value="opt.id"
+                                    >
+                                        {{ opt.value }}
+                                    </option>
+                                </select>
+                                <TextInput v-else v-model="row.value" class="mt-1.5 block w-full" />
+                                <InputError :message="form.errors[`informational_attributes.${index}.value`]" />
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SEO disclosure -->
+                    <section class="admin-card !p-0 overflow-hidden">
+                        <button
+                            type="button"
+                            class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left sm:px-5"
+                            @click="showSeo = !showSeo"
+                        >
+                            <div>
+                                <h2 class="text-sm font-semibold text-brand-navy">Search engine listing</h2>
+                                <p class="text-[11px] text-gray-400">Optional meta title & description</p>
+                            </div>
+                            <span class="text-xs text-gray-400">{{ showSeo ? 'Hide' : 'Show' }}</span>
+                        </button>
+                        <div v-show="showSeo" class="space-y-3 border-t border-gray-100 px-4 py-4 sm:px-5">
+                            <div>
+                                <InputLabel for="meta_title" value="Meta title" />
+                                <TextInput id="meta_title" v-model="form.meta_title" class="mt-1.5 block w-full" :placeholder="previewTitle" />
+                            </div>
+                            <div>
+                                <InputLabel for="meta_description" value="Meta description" />
+                                <textarea
+                                    id="meta_description"
+                                    v-model="form.meta_description"
+                                    rows="2"
+                                    class="mt-1.5 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                                />
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Side column -->
+                <aside class="space-y-5 xl:sticky xl:top-4 xl:self-start">
+                    <!-- Status -->
+                    <section class="admin-card !p-4 space-y-3">
+                        <h2 class="text-sm font-semibold text-brand-navy">Status</h2>
+                        <div>
+                            <InputLabel for="status" value="Lifecycle" />
+                            <select
+                                id="status"
+                                v-model="form.status"
+                                class="mt-1.5 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                            >
+                                <option v-for="opt in options.product_statuses" :key="opt.value" :value="opt.value">
+                                    {{ opt.label }}
                                 </option>
                             </select>
                         </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="admin-card space-y-5">
-                <h2 class="text-sm font-semibold text-brand-navy">4. Classification</h2>
-                <div class="grid gap-5 sm:grid-cols-2">
-                    <div>
-                        <InputLabel value="Brand" />
-                        <div class="mt-1">
-                            <SearchableSelect
-                                v-model="form.brand_id"
-                                :options="brands"
-                                placeholder="Search brand…"
-                                creatable
-                                create-label="Add brand"
-                                @create="openQuick('brand')"
-                            />
+                        <div>
+                            <InputLabel for="publication_status" value="Storefront" />
+                            <select
+                                id="publication_status"
+                                v-model="form.publication_status"
+                                class="mt-1.5 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                            >
+                                <option v-for="opt in options.publication_statuses" :key="opt.value" :value="opt.value">
+                                    {{ opt.label }}
+                                </option>
+                            </select>
                         </div>
-                    </div>
-                    <div>
-                        <InputLabel value="Primary category" />
-                        <div class="mt-1">
-                            <SearchableSelect
-                                v-model="form.primary_category_id"
-                                :options="categories"
-                                placeholder="Search category…"
-                                creatable
-                                create-label="Add category"
-                                @create="openQuick('category')"
-                            />
-                        </div>
-                        <p class="mt-1 text-[11px] text-gray-500">Create missing categories with + before saving.</p>
-                    </div>
-                    <div>
-                        <InputLabel value="Unit" />
-                        <div class="mt-1">
-                            <SearchableSelect
-                                v-model="form.unit_id"
-                                :options="options.units.map((u) => ({ id: u.id, name: `${u.name} (${u.code})` }))"
-                                placeholder="Search unit…"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <InputLabel value="Product family" />
-                        <div class="mt-1">
-                            <SearchableSelect
-                                v-model="form.product_family_id"
-                                :options="options.families"
-                                placeholder="Search family…"
-                            />
-                        </div>
-                    </div>
-                </div>
+                    </section>
 
-                <div>
-                    <InputLabel value="Additional categories" />
-                    <div class="mt-1">
-                        <SearchableMultiSelect
-                            v-model="form.category_ids"
-                            :options="categories"
-                            placeholder="Multi-select categories…"
-                            search-placeholder="Search categories…"
-                            creatable
-                            create-label="Add category"
-                            @create="openQuick('category')"
-                        />
-                    </div>
-                </div>
+                    <!-- Media -->
+                    <section class="admin-card !p-4 space-y-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <div>
+                                <h2 class="text-sm font-semibold text-brand-navy">Media</h2>
+                                <p class="text-[11px] text-gray-400">{{ mediaCount }} selected</p>
+                            </div>
+                            <button
+                                type="button"
+                                class="text-xs font-medium text-brand-teal hover:underline"
+                                @click="showMediaPicker = true"
+                            >
+                                {{ mediaCount ? 'Add more' : 'Browse' }}
+                            </button>
+                        </div>
 
-                <div>
-                    <InputLabel value="Collections" />
-                    <div class="mt-1">
-                        <SearchableMultiSelect
-                            v-model="form.collection_ids"
-                            :options="collections"
-                            placeholder="Multi-select collections…"
-                            creatable
-                            create-label="Add collection"
-                            @create="openQuick('collection')"
-                        />
-                    </div>
-                </div>
-            </section>
-
-            <section v-if="options.informational_attributes.length" class="admin-card space-y-4">
-                <h2 class="text-sm font-semibold text-brand-navy">5. Specifications</h2>
-                <div
-                    v-for="(row, index) in form.informational_attributes"
-                    :key="row.attribute_id"
-                    class="grid gap-2 sm:grid-cols-[180px_1fr] sm:items-center"
-                >
-                    <InputLabel :value="options.informational_attributes.find((a) => a.id === row.attribute_id)?.name" />
-                    <select
-                        v-if="options.informational_attributes.find((a) => a.id === row.attribute_id)?.input_type === 'select'"
-                        v-model="row.attribute_option_id"
-                        class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                    >
-                        <option value="">Select…</option>
-                        <option
-                            v-for="opt in options.informational_attributes.find((a) => a.id === row.attribute_id)?.options"
-                            :key="opt.id"
-                            :value="opt.id"
+                        <button
+                            v-if="!mediaCount"
+                            type="button"
+                            class="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-8 text-center transition hover:border-brand-teal/50 hover:bg-brand-teal/5"
+                            @click="showMediaPicker = true"
                         >
-                            {{ opt.value }}
-                        </option>
-                    </select>
-                    <TextInput v-else v-model="row.value" />
-                    <InputError :message="form.errors[`informational_attributes.${index}.value`]" />
-                </div>
-            </section>
+                            <svg class="h-7 w-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                            </svg>
+                            <span class="text-xs text-gray-500">Add product images</span>
+                        </button>
 
-            <section class="admin-card space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h2 class="text-sm font-semibold text-brand-navy">Media</h2>
-                        <p class="text-xs text-gray-500">Select from media library (upload there if needed).</p>
-                    </div>
-                    <SecondaryButton type="button" @click="showMediaPicker = true">Select from media</SecondaryButton>
-                </div>
-                <div v-if="libraryPreviews.length" class="flex flex-wrap gap-3">
-                    <div
-                        v-for="item in libraryPreviews"
-                        :key="item.id"
-                        class="group relative h-24 w-24 overflow-hidden rounded-xl ring-1 ring-gray-200"
-                    >
-                        <img :src="item.url" :alt="item.name" class="h-full w-full object-cover" />
+                        <div v-else class="grid grid-cols-3 gap-2">
+                            <div
+                                v-for="(item, index) in libraryPreviews"
+                                :key="item.id"
+                                class="group relative aspect-square overflow-hidden rounded-lg ring-1 ring-gray-200"
+                            >
+                                <img :src="item.url" :alt="item.name" class="h-full w-full object-cover" />
+                                <span
+                                    v-if="index === 0"
+                                    class="absolute left-1 top-1 rounded bg-brand-navy/85 px-1 py-0.5 text-[8px] font-medium text-white"
+                                >
+                                    Main
+                                </span>
+                                <button
+                                    type="button"
+                                    class="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-[9px] text-white opacity-0 group-hover:opacity-100"
+                                    @click="removeLibraryPreview(item.id)"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                        <InputError :message="form.errors.media_library_ids || form.errors.media" />
+                    </section>
+
+                    <!-- Organization -->
+                    <section class="admin-card !p-4 space-y-3">
+                        <h2 class="text-sm font-semibold text-brand-navy">Organization</h2>
+                        <div>
+                            <InputLabel :value="requirements.brand ? 'Brand *' : 'Brand'" />
+                            <div class="mt-1.5">
+                                <SearchableSelect
+                                    v-model="form.brand_id"
+                                    :options="brands"
+                                    placeholder="Search brand…"
+                                    creatable
+                                    create-label="Add brand"
+                                    @create="openQuick('brand')"
+                                />
+                            </div>
+                            <InputError class="mt-1" :message="form.errors.brand_id" />
+                        </div>
+                        <div>
+                            <InputLabel :value="requirements.primary_category ? 'Primary category *' : 'Primary category'" />
+                            <div class="mt-1.5">
+                                <SearchableSelect
+                                    v-model="form.primary_category_id"
+                                    :options="categories"
+                                    placeholder="Search category…"
+                                    creatable
+                                    create-label="Add category"
+                                    @create="openQuick('category')"
+                                />
+                            </div>
+                            <InputError class="mt-1" :message="form.errors.primary_category_id" />
+                        </div>
+                        <div>
+                            <InputLabel :value="requirements.unit ? 'Unit *' : 'Unit'" />
+                            <div class="mt-1.5">
+                                <SearchableSelect
+                                    v-model="form.unit_id"
+                                    :options="options.units.map((u) => ({ id: u.id, name: `${u.name} (${u.code})` }))"
+                                    placeholder="Search unit…"
+                                />
+                            </div>
+                            <InputError class="mt-1" :message="form.errors.unit_id" />
+                        </div>
+                        <div>
+                            <InputLabel value="Product family" />
+                            <div class="mt-1.5">
+                                <SearchableSelect
+                                    v-model="form.product_family_id"
+                                    :options="options.families"
+                                    placeholder="Search family…"
+                                />
+                            </div>
+                            <InputError class="mt-1" :message="form.errors.product_family_id" />
+                        </div>
+                        <div>
+                            <InputLabel value="More categories" />
+                            <div class="mt-1.5">
+                                <SearchableMultiSelect
+                                    v-model="form.category_ids"
+                                    :options="categories"
+                                    placeholder="Add categories…"
+                                    creatable
+                                    create-label="Add category"
+                                    @create="openQuick('category')"
+                                />
+                            </div>
+                            <InputError class="mt-1" :message="form.errors.category_ids" />
+                        </div>
+                        <div>
+                            <InputLabel value="Collections" />
+                            <div class="mt-1.5">
+                                <SearchableMultiSelect
+                                    v-model="form.collection_ids"
+                                    :options="collections"
+                                    placeholder="Add collections…"
+                                    creatable
+                                    create-label="Add collection"
+                                    @create="openQuick('collection')"
+                                />
+                            </div>
+                            <InputError class="mt-1" :message="form.errors.collection_ids" />
+                        </div>
+                    </section>
+
+                    <!-- Identifiers -->
+                    <section class="admin-card !p-0 overflow-hidden">
                         <button
                             type="button"
-                            class="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-[10px] text-white opacity-0 transition group-hover:opacity-100"
-                            @click="removeLibraryPreview(item.id)"
+                            class="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left"
+                            @click="showIds = !showIds"
                         >
-                            Remove
+                            <div>
+                                <h2 class="text-sm font-semibold text-brand-navy">Identifiers</h2>
+                                <p class="truncate font-mono text-[10px] text-gray-400">
+                                    {{ form.slug || 'slug-auto' }}
+                                </p>
+                            </div>
+                            <span class="text-xs text-gray-400">{{ showIds ? 'Hide' : 'Edit' }}</span>
                         </button>
-                    </div>
-                </div>
-                <p v-else class="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-400">
-                    No images selected yet
-                </p>
-                <InputError :message="form.errors.media_library_ids || form.errors.media" />
-            </section>
+                        <div v-show="showIds" class="space-y-3 border-t border-gray-100 px-4 py-4">
+                            <p class="text-[11px] leading-relaxed text-gray-400">
+                                Backend keeps these unique. Same name → -01, -02…
+                            </p>
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <InputLabel for="slug" value="Slug" />
+                                    <button
+                                        v-if="!auto.slug"
+                                        type="button"
+                                        class="text-[10px] font-medium text-brand-teal hover:underline"
+                                        @click="unlockAuto('slug')"
+                                    >
+                                        Auto
+                                    </button>
+                                </div>
+                                <TextInput
+                                    id="slug"
+                                    v-model="form.slug"
+                                    class="mt-1 block w-full font-mono text-xs"
+                                    @input="lockAuto('slug')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.slug" />
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <InputLabel for="internal_code" value="Internal code" />
+                                    <button
+                                        v-if="!auto.internal_code"
+                                        type="button"
+                                        class="text-[10px] font-medium text-brand-teal hover:underline"
+                                        @click="unlockAuto('internal_code')"
+                                    >
+                                        Auto
+                                    </button>
+                                </div>
+                                <TextInput
+                                    id="internal_code"
+                                    v-model="form.internal_code"
+                                    class="mt-1 block w-full font-mono text-xs"
+                                    @input="lockAuto('internal_code')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.internal_code" />
+                            </div>
+                            <template v-if="isSimple">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <InputLabel for="sku" value="SKU" />
+                                        <button
+                                            v-if="!auto.sku"
+                                            type="button"
+                                            class="text-[10px] font-medium text-brand-teal hover:underline"
+                                            @click="unlockAuto('sku')"
+                                        >
+                                            Auto
+                                        </button>
+                                    </div>
+                                    <TextInput
+                                        id="sku"
+                                        v-model="form.sku"
+                                        class="mt-1 block w-full font-mono text-xs"
+                                        @input="lockAuto('sku')"
+                                    />
+                                    <InputError class="mt-1" :message="form.errors.sku" />
+                                </div>
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <InputLabel for="barcode" value="Barcode" />
+                                        <button
+                                            v-if="!auto.barcode"
+                                            type="button"
+                                            class="text-[10px] font-medium text-brand-teal hover:underline"
+                                            @click="unlockAuto('barcode')"
+                                        >
+                                            Auto
+                                        </button>
+                                    </div>
+                                    <TextInput
+                                        id="barcode"
+                                        v-model="form.barcode"
+                                        class="mt-1 block w-full font-mono text-xs"
+                                        @input="lockAuto('barcode')"
+                                    />
+                                    <InputError class="mt-1" :message="form.errors.barcode" />
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                </aside>
+            </div>
 
-            <section class="admin-card space-y-4">
-                <h2 class="text-sm font-semibold text-brand-navy">SEO & status</h2>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <InputLabel for="meta_title" value="Meta title" />
-                        <TextInput id="meta_title" v-model="form.meta_title" class="mt-1 block w-full" />
-                    </div>
-                    <div>
-                        <InputLabel for="status" value="Lifecycle status" />
-                        <select
-                            id="status"
-                            v-model="form.status"
-                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                        >
-                            <option v-for="opt in options.product_statuses" :key="opt.value" :value="opt.value">
-                                {{ opt.label }}
-                            </option>
-                        </select>
-                    </div>
-                    <div>
-                        <InputLabel for="publication_status" value="Publication status" />
-                        <select
-                            id="publication_status"
-                            v-model="form.publication_status"
-                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                        >
-                            <option v-for="opt in options.publication_statuses" :key="opt.value" :value="opt.value">
-                                {{ opt.label }}
-                            </option>
-                        </select>
+            <div
+                class="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:left-72"
+            >
+                <div class="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3">
+                    <p class="truncate text-sm text-gray-500">
+                        <span class="font-medium text-brand-navy">{{ previewTitle }}</span>
+                        <span v-if="isSimple && form.sku" class="ml-2 font-mono text-xs text-gray-400">{{ form.sku }}</span>
+                    </p>
+                    <div class="flex items-center gap-3">
+                        <Link :href="route('products.index')" class="text-sm text-gray-500 hover:text-brand-navy">Cancel</Link>
+                        <PrimaryButton :disabled="form.processing || !form.name.trim()">
+                            {{ form.processing ? 'Creating…' : 'Create product' }}
+                        </PrimaryButton>
                     </div>
                 </div>
-                <div>
-                    <InputLabel for="meta_description" value="Meta description" />
-                    <textarea
-                        id="meta_description"
-                        v-model="form.meta_description"
-                        rows="3"
-                        class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-brand-teal focus:ring-brand-teal"
-                    />
-                </div>
-            </section>
-
-            <div class="sticky bottom-0 z-10 -mx-1 flex items-center gap-3 rounded-xl border border-gray-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
-                <PrimaryButton :disabled="form.processing">Create product</PrimaryButton>
-                <Link :href="route('products.index')" class="text-sm text-gray-500 hover:text-brand-navy">Cancel</Link>
             </div>
         </form>
 
-        <MediaPicker :show="showMediaPicker" @close="showMediaPicker = false" @select="onMediaSelected" />
+        <MediaPicker
+            :show="showMediaPicker"
+            :multiple="true"
+            :selected-ids="form.media_library_ids"
+            title="Select product images"
+            @close="showMediaPicker = false"
+            @select="onMediaSelected"
+        />
+
+        <MediaPicker
+            :show="showVariantMediaPicker"
+            :multiple="false"
+            :selected-ids="variantMediaIndex != null ? form.variants[variantMediaIndex]?.media_library_ids || [] : []"
+            title="Select variant image"
+            @close="showVariantMediaPicker = false"
+            @select="onVariantMediaSelected"
+        />
 
         <Modal :show="!!quickModal" max-width="md" @close="quickModal = null">
             <div class="space-y-4 p-6">

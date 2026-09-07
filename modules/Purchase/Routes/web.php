@@ -34,10 +34,10 @@ Route::get('/reports', [PurchaseReportController::class, 'index'])->name('report
 
 Route::prefix('orders')->name('orders.')->group(function () {
     Route::get('/all', [PurchaseOrderController::class, 'index'])->name('all');
-    Route::get('/draft', [PurchaseOrderController::class, 'index'])->name('draft');
-    Route::get('/pending', [PurchaseOrderController::class, 'index'])->name('pending');
-    Route::get('/approved', [PurchaseOrderController::class, 'index'])->name('approved');
-    Route::get('/cancelled', [PurchaseOrderController::class, 'index'])->name('cancelled');
+    Route::get('/draft', fn () => redirect()->route('purchase.orders.all', ['status' => 'draft']))->name('draft');
+    Route::get('/pending', fn () => redirect()->route('purchase.orders.all', ['status' => 'pending']))->name('pending');
+    Route::get('/approved', fn () => redirect()->route('purchase.orders.all', ['status' => 'approved']))->name('approved');
+    Route::get('/cancelled', fn () => redirect()->route('purchase.orders.all', ['status' => 'cancelled']))->name('cancelled');
 
     Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
     Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');

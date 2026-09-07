@@ -4,6 +4,7 @@ namespace Modules\Sales\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Sales\Enums\SalesDeliveryStatus;
 
 class SalesOrderItem extends Model
 {
@@ -17,6 +18,8 @@ class SalesOrderItem extends Model
         'unit_price',
         'line_total',
         'currency',
+        'delivery_status',
+        'quantity_delivered',
         'sort_order',
     ];
 
@@ -26,6 +29,8 @@ class SalesOrderItem extends Model
             'quantity' => 'decimal:4',
             'unit_price' => 'decimal:4',
             'line_total' => 'decimal:4',
+            'quantity_delivered' => 'decimal:4',
+            'delivery_status' => SalesDeliveryStatus::class,
         ];
     }
 

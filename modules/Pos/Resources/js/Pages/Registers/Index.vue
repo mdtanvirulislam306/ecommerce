@@ -1,5 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
+import AdminEmptyState from '@/Components/Admin/AdminEmptyState.vue';
 import Modal from '@/Components/Modal.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -7,7 +9,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -21,6 +23,8 @@ const showModal = ref(false);
 const editing = ref(null);
 const openTarget = ref(null);
 const closeTarget = ref(null);
+const statusFilter = ref('all');
+const search = ref('');
 
 const form = useForm({
     name: '',
@@ -33,6 +37,33 @@ const form = useForm({
 
 const openForm = useForm({ opening_cash: 0 });
 const closeForm = useForm({ closing_cash: 0 });
+
+const filteredRegisters = computed(() => {
+    const q = search.value.trim().toLowerCase();
+
+    return props.registers.filter((register) => {
+        if (statusFilter.value === 'open' && !register.has_open_session) {
+            return false;
+        }
+        if (statusFilter.value === 'closed' && register.has_open_session) {
+            return false;
+        }
+        if (statusFilter.value === 'active' && !register.is_active) {
+            return false;
+        }
+        if (!q) {
+            return true;
+        }
+
+        return `${register.name} ${register.code}`.toLowerCase().includes(q);
+    });
+});
+
+const stats = computed(() => ({
+    total: props.registers.length,
+    open: props.registers.filter((r) => r.has_open_session).length,
+    active: props.registers.filter((r) => r.is_active).length,
+}));
 
 const openCreate = () => {
     editing.value = null;
@@ -96,57 +127,149 @@ const submitClose = () => {
             {{ flash.success }}
         </div>
 
+        <div class="mb-4 grid gap-3 sm:grid-cols-3">
+            <div class="admin-card">
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Registers</p>
+                <p class="mt-1 text-2xl font-semibold text-brand-navy">{{ stats.total }}</p>
+            </div>
+            <div class="admin-card">
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Open sessions</p>
+                <p class="mt-1 text-2xl font-semibold text-emerald-700">{{ stats.open }}</p>
+            </div>
+            <div class="admin-card">
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Active</p>
+                <p class="mt-1 text-2xl font-semibold text-brand-navy">{{ stats.active }}</p>
+            </div>
+        </div>
+
         <div class="admin-data-table">
             <div class="admin-data-table__toolbar">
-                <h2 class="text-sm font-semibold text-brand-navy">Registers</h2>
-                <PrimaryButton type="button" @click="openCreate">Add register</PrimaryButton>
+                <div>
+                    <h2 class="text-sm font-semibold text-brand-navy">Registers</h2>
+                    <p class="text-xs text-gray-500">{{ filteredRegisters.length }} showing</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <input
+                        v-model="search"
+                        type="search"
+                        placeholder="Search name or code…"
+                        class="admin-data-table__search"
+                    />
+                    <Link
+                        :href="route('pos.terminal')"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-brand-navy px-3 py-2 text-xs font-semibold text-white hover:bg-brand-navy/90"
+                    >
+                        <ActionIcon name="terminal" />
+                        Open Terminal
+                    </Link>
+                    <PrimaryButton type="button" @click="openCreate">Add register</PrimaryButton>
+                </div>
             </div>
+
+            <div class="flex flex-wrap gap-1.5 border-b border-gray-100 px-4 py-2.5 sm:px-5">
+                <button
+                    v-for="opt in [
+                        { value: 'all', label: 'All' },
+                        { value: 'open', label: 'Session open' },
+                        { value: 'closed', label: 'Session closed' },
+                        { value: 'active', label: 'Active only' },
+                    ]"
+                    :key="opt.value"
+                    type="button"
+                    class="rounded-full px-2.5 py-1 text-[11px] font-medium transition ring-1"
+                    :class="
+                        statusFilter === opt.value
+                            ? 'bg-brand-navy text-white ring-brand-navy'
+                            : 'bg-white text-gray-600 ring-gray-200 hover:ring-gray-300'
+                    "
+                    @click="statusFilter = opt.value"
+                >
+                    {{ opt.label }}
+                </button>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead class="border-b border-gray-200 bg-gray-50/90">
                         <tr class="admin-data-table__head">
-                            <th>Name</th>
+                            <th>Register</th>
                             <th>Code</th>
                             <th>Session</th>
+                            <th>Status</th>
                             <th>Default</th>
                             <th class="text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="register in registers" :key="register.id" class="admin-data-table__row">
-                            <td class="admin-data-table__cell font-medium text-brand-navy">{{ register.name }}</td>
-                            <td class="admin-data-table__cell">{{ register.code }}</td>
+                        <tr v-for="register in filteredRegisters" :key="register.id" class="admin-data-table__row">
+                            <td class="admin-data-table__cell">
+                                <p class="font-medium text-brand-navy">{{ register.name }}</p>
+                            </td>
+                            <td class="admin-data-table__cell">
+                                <span class="rounded-md bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-600">{{ register.code }}</span>
+                            </td>
                             <td class="admin-data-table__cell">
                                 <span
-                                    class="rounded-full px-2 py-0.5 text-xs font-medium"
-                                    :class="register.has_open_session ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'"
+                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
+                                    :class="
+                                        register.has_open_session
+                                            ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                            : 'bg-gray-100 text-gray-600 ring-gray-200'
+                                    "
                                 >
                                     {{ register.has_open_session ? 'Open' : 'Closed' }}
                                 </span>
                             </td>
-                            <td class="admin-data-table__cell">{{ register.is_default ? 'Yes' : '—' }}</td>
-                            <td class="admin-data-table__cell text-right">
-                                <button type="button" class="admin-data-table__action" @click="openEdit(register)">Edit</button>
-                                <button
-                                    v-if="!register.has_open_session"
-                                    type="button"
-                                    class="admin-data-table__action text-emerald-700"
-                                    @click="openTarget = register"
+                            <td class="admin-data-table__cell">
+                                <span
+                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
+                                    :class="
+                                        register.is_active
+                                            ? 'bg-sky-50 text-sky-800 ring-sky-200'
+                                            : 'bg-red-50 text-red-700 ring-red-200'
+                                    "
                                 >
-                                    Open session
-                                </button>
-                                <button
-                                    v-else
-                                    type="button"
-                                    class="admin-data-table__action text-amber-700"
-                                    @click="closeTarget = register"
-                                >
-                                    Close session
-                                </button>
+                                    {{ register.is_active ? 'Active' : 'Inactive' }}
+                                </span>
+                            </td>
+                            <td class="admin-data-table__cell text-gray-600">{{ register.is_default ? 'Yes' : '—' }}</td>
+                            <td class="admin-data-table__cell">
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <button type="button" class="admin-data-table__action" title="Edit" @click="openEdit(register)">
+                                        <ActionIcon name="edit" />
+                                    </button>
+                                    <button
+                                        v-if="!register.has_open_session"
+                                        type="button"
+                                        class="admin-data-table__action text-emerald-700"
+                                        title="Open session"
+                                        @click="openTarget = register"
+                                    >
+                                        <ActionIcon name="open" />
+                                    </button>
+                                    <button
+                                        v-else
+                                        type="button"
+                                        class="admin-data-table__action text-amber-700"
+                                        title="Close session"
+                                        @click="closeTarget = register"
+                                    >
+                                        <ActionIcon name="close" />
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div v-if="!filteredRegisters.length" class="p-4">
+                <AdminEmptyState
+                    title="No registers match"
+                    description="Try another filter, or add a new register."
+                    action-label="Add register"
+                    @action="openCreate"
+                />
             </div>
         </div>
 

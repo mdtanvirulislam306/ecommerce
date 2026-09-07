@@ -16,6 +16,7 @@ const model = defineModel({ type: Array, default: () => [] });
 const emit = defineEmits(['create']);
 
 const open = ref(false);
+const placed = ref(false);
 const query = ref('');
 const root = ref(null);
 const trigger = ref(null);
@@ -55,27 +56,37 @@ const placePanel = () => {
 
     const rect = trigger.value.getBoundingClientRect();
     const gap = 6;
-    const viewportPadding = 12;
-    const panelHeight = 260;
+    const viewportPadding = 8;
+    const estimatedHeight = 260;
+    const width = Math.max(rect.width, 200);
+
     let top = rect.bottom + gap;
     let left = rect.left;
-    const width = Math.max(rect.width, 200);
 
     if (left + width > window.innerWidth - viewportPadding) {
         left = Math.max(viewportPadding, rect.right - width);
     }
+    left = Math.max(viewportPadding, left);
 
-    if (top + panelHeight > window.innerHeight - viewportPadding && rect.top > panelHeight + gap) {
-        top = rect.top - panelHeight - gap;
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+
+    if (spaceBelow < Math.min(estimatedHeight, 160) && spaceAbove > spaceBelow) {
+        top = Math.max(viewportPadding, rect.top - estimatedHeight - gap);
+    }
+
+    if (top + estimatedHeight > window.innerHeight - viewportPadding) {
+        top = Math.max(viewportPadding, window.innerHeight - estimatedHeight - viewportPadding);
     }
 
     panelStyle.value = {
         position: 'fixed',
-        top: `${Math.max(viewportPadding, top)}px`,
-        left: `${Math.max(viewportPadding, left)}px`,
-        width: `${width}px`,
-        zIndex: 100,
+        top: `${Math.round(top)}px`,
+        left: `${Math.round(left)}px`,
+        width: `${Math.round(width)}px`,
+        zIndex: 10000,
     };
+    placed.value = true;
 };
 
 const resolveTeleport = () => {
@@ -99,27 +110,36 @@ const removeChip = (id) => {
     model.value = model.value.filter((v) => String(v) !== String(id));
 };
 
+const close = () => {
+    open.value = false;
+    query.value = '';
+    placed.value = false;
+};
+
 const toggle = async () => {
     if (props.disabled) {
         return;
     }
 
-    open.value = !open.value;
-
     if (open.value) {
-        query.value = '';
-        resolveTeleport();
-        await nextTick();
-        placePanel();
-        searchInput.value?.focus();
+        close();
+        return;
     }
+
+    query.value = '';
+    resolveTeleport();
+    placePanel();
+    open.value = true;
+    await nextTick();
+    placePanel();
+    searchInput.value?.focus({ preventScroll: true });
 };
 
 const onOutside = (e) => {
     const inRoot = root.value?.contains(e.target);
     const inPanel = panel.value?.contains(e.target);
     if (!inRoot && !inPanel) {
-        open.value = false;
+        close();
     }
 };
 
@@ -144,6 +164,7 @@ onUnmounted(() => {
 watch(open, (v) => {
     if (!v) {
         query.value = '';
+        placed.value = false;
     }
 });
 </script>
@@ -172,6 +193,7 @@ watch(open, (v) => {
                         v-if="open"
                         ref="panel"
                         class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl ring-1 ring-black/5"
+                        :class="placed ? 'visible' : 'invisible'"
                         :style="panelStyle"
                     >
                         <div class="border-b border-gray-100 p-2">
@@ -182,6 +204,7 @@ watch(open, (v) => {
                                 :placeholder="searchPlaceholder"
                                 class="w-full rounded-md border-gray-200 text-sm focus:border-brand-teal focus:ring-brand-teal"
                                 @click.stop
+                                @keydown.esc.prevent="close"
                             />
                         </div>
                         <ul class="max-h-52 overflow-y-auto py-1">

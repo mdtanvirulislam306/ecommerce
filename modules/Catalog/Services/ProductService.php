@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Modules\Catalog\Enums\AttributeType;
 use Modules\Catalog\Enums\MediaType;
@@ -25,11 +26,11 @@ use Modules\Catalog\Models\ProductFamily;
 use Modules\Catalog\Models\ProductMedia;
 use Modules\Catalog\Models\ProductVariant;
 use Modules\Catalog\Models\Unit;
-use Modules\Catalog\Support\GeneratesUniqueSlug;
+use Modules\Catalog\Support\GeneratesProductIdentifiers;
 
 class ProductService extends Service
 {
-    use GeneratesUniqueSlug;
+    use GeneratesProductIdentifiers;
 
     public function __construct(
         private readonly CatalogSettingsService $catalogSettings,
@@ -109,9 +110,13 @@ class ProductService extends Service
             'product_statuses' => $this->enumOptions(ProductStatus::cases()),
             'publication_statuses' => $this->enumOptions(PublicationStatus::cases()),
             'catalog_defaults' => [
-                'status' => $this->catalogSettings->defaultProductStatus()->value,
+                'status' => $this->catalogSettings->shouldAutoSubmitForReview()
+                    ? ProductStatus::PendingReview->value
+                    : $this->catalogSettings->defaultProductStatus()->value,
                 'publication_status' => $this->catalogSettings->defaultPublicationStatus()->value,
                 'unit_id' => $this->catalogSettings->get()->default_unit_id,
+                'sku_prefix' => $this->catalogSettings->get()->sku_prefix ?? '',
+                'auto_submit_for_review' => $this->catalogSettings->shouldAutoSubmitForReview(),
             ],
             'catalog_requirements' => [
                 'brand' => $this->catalogSettings->get()->require_brand_on_create,
@@ -134,6 +139,7 @@ class ProductService extends Service
             'attributeValues.option:id,value',
             'variants.attributeValues.attribute:id,name',
             'variants.attributeValues.option:id,value',
+            'variants.media',
             'media',
         ]);
 
@@ -146,7 +152,9 @@ class ProductService extends Service
     public function create(array $data, array $mediaFiles = []): Product
     {
         return DB::transaction(function () use ($data, $mediaFiles) {
-            if ($this->catalogSettings->shouldAutoSubmitForReview() && empty($data['status'])) {
+            if ($this->catalogSettings->shouldAutoSubmitForReview()
+                && (empty($data['status']) || $data['status'] === ProductStatus::Draft->value)
+            ) {
                 $data['status'] = ProductStatus::PendingReview->value;
             }
 
@@ -313,6 +321,32 @@ class ProductService extends Service
         $name = $data['name'];
         $type = $data['type'] ?? $product?->type ?? ProductType::Simple;
         $typeValue = $type instanceof ProductType ? $type : ProductType::from($type);
+        $prefix = $this->catalogSettings->get()->sku_prefix;
+
+        $slug = $this->uniquifySlug(
+            filled($data['slug'] ?? null) ? (string) $data['slug'] : $name,
+            Product::class,
+            $product?->id,
+        );
+
+        $internalCode = $this->uniquifyInternalCode(
+            filled($data['internal_code'] ?? null)
+                ? (string) $data['internal_code']
+                : ($product?->internal_code ?: Str::upper(Str::slug($name, '_')) ?: 'ITEM'),
+            $product?->id,
+        );
+
+        $skuSeed = filled($data['sku'] ?? null)
+            ? (string) $data['sku']
+            : ($product?->sku ?: trim((string) $prefix).Str::upper(Str::slug($name, '') ?: 'SKU'));
+
+        $sku = $this->uniquifySku($skuSeed, $product?->id);
+
+        $barcode = filled($data['barcode'] ?? null)
+            ? $this->uniquifyBarcode((string) $data['barcode'], $product?->id)
+            : ($product?->barcode && ! filled($data['sku'] ?? null)
+                ? $this->uniquifyBarcode((string) $product->barcode, $product?->id)
+                : $this->barcodeFromSku($sku, $product?->id));
 
         $attributes = [
             'product_family_id' => $data['product_family_id'] ?? $product?->product_family_id,
@@ -321,11 +355,11 @@ class ProductService extends Service
             'unit_id' => $data['unit_id'] ?? $product?->unit_id,
             'type' => $typeValue,
             'name' => $name,
-            'slug' => $data['slug'] ?? $this->uniqueSlug($name, Product::class, $product?->id),
+            'slug' => $slug,
             'description' => $data['description'] ?? $product?->description,
-            'internal_code' => $data['internal_code'] ?? $product?->internal_code,
-            'sku' => $data['sku'] ?? $product?->sku,
-            'barcode' => $data['barcode'] ?? $product?->barcode,
+            'internal_code' => $internalCode,
+            'sku' => $sku,
+            'barcode' => $barcode,
             'status' => $data['status'] ?? $product?->status ?? $this->catalogSettings->defaultProductStatus(),
             'publication_status' => $data['publication_status'] ?? $product?->publication_status ?? $this->catalogSettings->defaultPublicationStatus(),
             'meta_title' => $data['meta_title'] ?? $product?->meta_title,
@@ -362,11 +396,22 @@ class ProductService extends Service
     private function createVariants(Product $product, array $variants): void
     {
         $variantService = app(ProductVariantService::class);
+        $prefix = $this->catalogSettings->get()->sku_prefix;
 
         foreach ($variants as $index => $variantData) {
-            $variantService->create($product, array_merge($variantData, [
+            $variantData['sku'] = filled($variantData['sku'] ?? null)
+                ? $this->uniquifySku((string) $variantData['sku'])
+                : $this->uniqueVariantSku($product->name, $index + 1, $prefix);
+
+            $variantData['barcode'] = filled($variantData['barcode'] ?? null)
+                ? $this->uniquifyBarcode((string) $variantData['barcode'])
+                : $this->barcodeFromSku($variantData['sku']);
+
+            $variant = $variantService->create($product, array_merge($variantData, [
                 'sort_order' => $variantData['sort_order'] ?? $index,
             ]));
+
+            $this->attachLibraryMedia($product, $variantData['media_library_ids'] ?? [], $variant->id);
         }
     }
 
@@ -383,6 +428,8 @@ class ProductService extends Service
 
         $variantService = app(ProductVariantService::class);
 
+        $prefix = $this->catalogSettings->get()->sku_prefix;
+
         foreach ($variants as $index => $variantData) {
             if (! empty($variantData['id'])) {
                 $variant = ProductVariant::query()
@@ -390,14 +437,36 @@ class ProductService extends Service
                     ->find($variantData['id']);
 
                 if ($variant) {
+                    $variantData['sku'] = filled($variantData['sku'] ?? null)
+                        ? $this->uniquifySku((string) $variantData['sku'], $product->id, $variant->id)
+                        : $variant->sku;
+
+                    $variantData['barcode'] = filled($variantData['barcode'] ?? null)
+                        ? $this->uniquifyBarcode((string) $variantData['barcode'], $product->id, $variant->id)
+                        : ($variant->barcode ?: $this->barcodeFromSku($variantData['sku'], $product->id, $variant->id));
+
                     $variantService->update($variant, array_merge($variantData, [
                         'sort_order' => $variantData['sort_order'] ?? $index,
                     ]));
+
+                    if (array_key_exists('media_library_ids', $variantData) && filled($variantData['media_library_ids'] ?? null)) {
+                        $this->attachLibraryMedia($product, $variantData['media_library_ids'] ?? [], $variant->id);
+                    }
                 }
             } else {
-                $variantService->create($product, array_merge($variantData, [
+                $variantData['sku'] = filled($variantData['sku'] ?? null)
+                    ? $this->uniquifySku((string) $variantData['sku'], $product->id)
+                    : $this->uniqueVariantSku($product->name, $index + 1, $prefix);
+
+                $variantData['barcode'] = filled($variantData['barcode'] ?? null)
+                    ? $this->uniquifyBarcode((string) $variantData['barcode'], $product->id)
+                    : $this->barcodeFromSku($variantData['sku'], $product->id);
+
+                $variant = $variantService->create($product, array_merge($variantData, [
                     'sort_order' => $variantData['sort_order'] ?? $index,
                 ]));
+
+                $this->attachLibraryMedia($product, $variantData['media_library_ids'] ?? [], $variant->id);
             }
         }
     }
@@ -456,20 +525,39 @@ class ProductService extends Service
      *
      * @param  list<int|string>  $ids
      */
-    private function attachLibraryMedia(Product $product, array $ids): void
+    private function attachLibraryMedia(Product $product, array $ids, ?int $variantId = null): void
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        if ($variantId !== null) {
+            $ids = array_slice($ids, 0, 1);
+        }
 
         if ($ids === [] || ! Schema::hasTable('media_library_items')) {
             return;
         }
 
+        if ($variantId !== null) {
+            $existing = $product->media()->where('product_variant_id', $variantId)->get();
+            foreach ($existing as $media) {
+                Storage::disk('public')->delete($media->path);
+                $media->delete();
+            }
+        }
+
         $sortOrder = (int) $product->media()->max('sort_order');
-        $hasPrimary = $product->media()->where('is_primary', true)->exists();
+        $hasPrimary = $variantId
+            ? $product->media()->where('product_variant_id', $variantId)->where('is_primary', true)->exists()
+            : $product->media()->whereNull('product_variant_id')->where('is_primary', true)->exists();
 
-        $items = DB::table('media_library_items')->whereIn('id', $ids)->get();
+        $items = DB::table('media_library_items')->whereIn('id', $ids)->get()->keyBy('id');
 
-        foreach ($items as $item) {
+        foreach ($ids as $id) {
+            $item = $items->get($id);
+            if ($item === null) {
+                continue;
+            }
+
             $disk = $item->disk ?: 'public';
             $extension = pathinfo((string) $item->path, PATHINFO_EXTENSION) ?: 'jpg';
             $dest = 'products/'.uniqid('lib_', true).'.'.$extension;
@@ -483,6 +571,7 @@ class ProductService extends Service
 
             ProductMedia::query()->create([
                 'product_id' => $product->id,
+                'product_variant_id' => $variantId,
                 'path' => $dest,
                 'type' => MediaType::Image,
                 'alt' => $item->name,
@@ -563,6 +652,7 @@ class ProductService extends Service
             'primary_category_id' => $product->primary_category_id,
             'unit_id' => $product->unit_id,
             'type' => $product->type?->value,
+            'type_label' => $product->type?->label(),
             'name' => $product->name,
             'slug' => $product->slug,
             'description' => $product->description,
@@ -570,7 +660,9 @@ class ProductService extends Service
             'sku' => $product->sku,
             'barcode' => $product->barcode,
             'status' => $product->status?->value,
+            'status_label' => $product->status?->label(),
             'publication_status' => $product->publication_status?->value,
+            'publication_status_label' => $product->publication_status?->label(),
             'meta_title' => $product->meta_title,
             'meta_description' => $product->meta_description,
             'sort_order' => $product->sort_order,
@@ -580,6 +672,10 @@ class ProductService extends Service
             'unit' => $product->unit ? ['id' => $product->unit->id, 'name' => $product->unit->name, 'code' => $product->unit->code] : null,
             'category_ids' => $product->categories->pluck('id')->all(),
             'collection_ids' => $product->collections->pluck('id')->all(),
+            'collections' => $product->collections->map(fn ($collection) => [
+                'id' => $collection->id,
+                'name' => $collection->name,
+            ])->values()->all(),
             'informational_attributes' => $product->attributeValues->map(fn (ProductAttributeValue $value) => [
                 'attribute_id' => $value->attribute_id,
                 'attribute_name' => $value->attribute?->name,
@@ -587,20 +683,38 @@ class ProductService extends Service
                 'option_value' => $value->option?->value,
                 'value' => $value->value,
             ])->all(),
-            'variants' => $product->variants->map(fn ($variant) => [
-                'id' => $variant->id,
-                'sku' => $variant->sku,
-                'barcode' => $variant->barcode,
-                'name' => $variant->name,
-                'weight' => $variant->weight,
-                'is_active' => $variant->is_active,
-                'attributes' => $variant->attributeValues->map(fn ($value) => [
-                    'attribute_id' => $value->attribute_id,
-                    'attribute_name' => $value->attribute?->name,
-                    'attribute_option_id' => $value->attribute_option_id,
-                    'option_value' => $value->option?->value,
-                ])->all(),
-            ])->all(),
+            'variants' => $product->variants->map(function ($variant) {
+                $variantMedia = $variant->media
+                    ->sortBy('sort_order')
+                    ->values()
+                    ->map(fn ($media) => [
+                        'id' => $media->id,
+                        'url' => $media->url(),
+                        'alt' => $media->alt,
+                        'is_primary' => $media->is_primary,
+                        'sort_order' => $media->sort_order,
+                    ])
+                    ->all();
+
+                $primary = collect($variantMedia)->firstWhere('is_primary', true) ?? ($variantMedia[0] ?? null);
+
+                return [
+                    'id' => $variant->id,
+                    'sku' => $variant->sku,
+                    'barcode' => $variant->barcode,
+                    'name' => $variant->name,
+                    'weight' => $variant->weight,
+                    'is_active' => $variant->is_active,
+                    'attributes' => $variant->attributeValues->map(fn ($value) => [
+                        'attribute_id' => $value->attribute_id,
+                        'attribute_name' => $value->attribute?->name,
+                        'attribute_option_id' => $value->attribute_option_id,
+                        'option_value' => $value->option?->value,
+                    ])->all(),
+                    'media' => $variantMedia,
+                    'image_url' => $primary['url'] ?? null,
+                ];
+            })->all(),
             'media' => $product->media->map(fn ($media) => [
                 'id' => $media->id,
                 'url' => $media->url(),
@@ -608,6 +722,7 @@ class ProductService extends Service
                 'alt' => $media->alt,
                 'is_primary' => $media->is_primary,
                 'sort_order' => $media->sort_order,
+                'product_variant_id' => $media->product_variant_id,
             ])->all(),
             'selling_price' => $this->resolveRetailPrice($product->id),
             'current_stock' => $this->resolveCurrentStock($product->id),

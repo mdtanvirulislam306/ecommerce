@@ -20,12 +20,16 @@ class PosOrderController extends Controller
         $status = $request->filled('status')
             ? PosOrderStatus::tryFrom($request->string('status')->toString())
             : null;
+        $dateFrom = $this->nullableDate($request->string('date_from')->toString());
+        $dateTo = $this->nullableDate($request->string('date_to')->toString());
 
         return Inertia::render('Pos/Orders/Index', [
-            'orders' => $service->listPaginated($search ?: null, $status, $perPage),
+            'orders' => $service->listPaginated($search ?: null, $status, $perPage, $dateFrom, $dateTo),
             'filters' => [
                 'search' => $search,
                 'status' => $status?->value,
+                'date_from' => $dateFrom ?? '',
+                'date_to' => $dateTo ?? '',
                 'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
             ],
             'statusOptions' => collect(PosOrderStatus::cases())->map(fn ($case) => [
@@ -48,5 +52,16 @@ class PosOrderController extends Controller
         $service->cancel($posOrder, request()->user()->id);
 
         return back()->with('success', 'POS sale cancelled and stock restocked.');
+    }
+
+    private function nullableDate(string $value): ?string
+    {
+        $value = trim($value);
+
+        if ($value === '' || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        return $value;
     }
 }

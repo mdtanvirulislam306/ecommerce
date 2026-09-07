@@ -18,7 +18,9 @@ class ProductController extends Controller
 {
     public function index(Request $request, ProductService $service): Response
     {
-        $status = $this->resolveListStatus($request);
+        $status = $request->filled('status')
+            ? ProductStatus::tryFrom($request->string('status')->toString())
+            : null;
         $perPage = (int) $request->input('per_page', 25);
         $search = $request->string('search')->trim()->toString();
 
@@ -39,8 +41,14 @@ class ProductController extends Controller
                 'type' => $type?->value,
                 'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
             ],
-            'listRoute' => $request->route()->getName(),
-            'listTitle' => $this->resolveListTitle($request),
+            'statusOptions' => collect(ProductStatus::cases())->map(fn (ProductStatus $case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
+            ])->values()->all(),
+            'typeOptions' => [
+                ['value' => 'simple', 'label' => 'Simple'],
+                ['value' => 'variant', 'label' => 'Variant'],
+            ],
             'perPageOptions' => [10, 25, 50, 100],
         ]);
     }
@@ -99,29 +107,5 @@ class ProductController extends Controller
         return redirect()
             ->route('products.index')
             ->with('success', 'Product removed.');
-    }
-
-    private function resolveListStatus(Request $request): ?ProductStatus
-    {
-        return match ($request->route()->getName()) {
-            'products.draft' => ProductStatus::Draft,
-            'products.pending' => ProductStatus::PendingReview,
-            'products.active' => ProductStatus::Active,
-            'products.archived' => ProductStatus::Archived,
-            default => $request->filled('status')
-                ? ProductStatus::tryFrom($request->string('status')->toString())
-                : null,
-        };
-    }
-
-    private function resolveListTitle(Request $request): string
-    {
-        return match ($request->route()->getName()) {
-            'products.draft' => 'Draft Products',
-            'products.pending' => 'Pending Approval',
-            'products.active' => 'Active Products',
-            'products.archived' => 'Archived Products',
-            default => 'All Products',
-        };
     }
 }

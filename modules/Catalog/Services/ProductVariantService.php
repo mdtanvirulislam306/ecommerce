@@ -5,6 +5,7 @@ namespace Modules\Catalog\Services;
 use App\Core\Support\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Modules\Catalog\Models\Product;
 use Modules\Catalog\Models\ProductVariant;
 use Modules\Catalog\Models\ProductVariantAttributeValue;
@@ -70,7 +71,16 @@ class ProductVariantService extends Service
 
     public function delete(ProductVariant $variant): void
     {
-        DB::transaction(fn () => $variant->delete());
+        DB::transaction(function () use ($variant) {
+            $variant->load('media');
+
+            foreach ($variant->media as $media) {
+                Storage::disk('public')->delete($media->path);
+                $media->delete();
+            }
+
+            $variant->delete();
+        });
     }
 
     /**

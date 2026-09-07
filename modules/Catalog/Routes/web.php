@@ -27,10 +27,10 @@ Route::get('/settings', [CatalogSettingsController::class, 'index'])->name('sett
 Route::put('/settings', [CatalogSettingsController::class, 'update'])->name('settings.update');
 
 Route::get('/all-products', [ProductController::class, 'index'])->name('index');
-Route::get('/draft', [ProductController::class, 'index'])->name('draft');
-Route::get('/pending-approval', [ProductController::class, 'index'])->name('pending');
-Route::get('/active', [ProductController::class, 'index'])->name('active');
-Route::get('/archived', [ProductController::class, 'index'])->name('archived');
+Route::get('/draft', fn () => redirect()->route('products.index', ['status' => 'draft']))->name('draft');
+Route::get('/pending-approval', fn () => redirect()->route('products.index', ['status' => 'pending_review']))->name('pending');
+Route::get('/active', fn () => redirect()->route('products.index', ['status' => 'active']))->name('active');
+Route::get('/archived', fn () => redirect()->route('products.index', ['status' => 'archived']))->name('archived');
 Route::get('/create', [ProductController::class, 'create'])->name('create');
 Route::post('/', [ProductController::class, 'store'])->name('store');
 
@@ -67,6 +67,20 @@ Route::prefix('units')->name('units.')->group(function () {
     Route::post('/', [UnitController::class, 'store'])->name('store');
     Route::put('/{unit}', [UnitController::class, 'update'])->name('update');
     Route::delete('/{unit}', [UnitController::class, 'destroy'])->name('destroy');
+});
+
+Route::prefix('attributes')->name('attributes.')->group(function () {
+    Route::get('/', [AttributeController::class, 'index'])->name('index');
+    Route::post('/', [AttributeController::class, 'store'])->name('store');
+    Route::put('/{attribute}', [AttributeController::class, 'update'])->name('update');
+    Route::delete('/{attribute}', [AttributeController::class, 'destroy'])->name('destroy');
+});
+
+Route::prefix('families')->name('families.')->group(function () {
+    Route::get('/', [ProductFamilyController::class, 'index'])->name('index');
+    Route::post('/', [ProductFamilyController::class, 'store'])->name('store');
+    Route::put('/{family}', [ProductFamilyController::class, 'update'])->name('update');
+    Route::delete('/{family}', [ProductFamilyController::class, 'destroy'])->name('destroy');
 });
 
 Route::get('/variants', [VariantController::class, 'index'])->name('variants.index');

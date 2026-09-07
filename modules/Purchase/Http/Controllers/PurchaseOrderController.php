@@ -30,7 +30,6 @@ class PurchaseOrderController extends Controller
                 'status' => $status?->value,
                 'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
             ],
-            'listTitle' => $this->resolveTitle($request),
             'statusOptions' => collect(PurchaseOrderStatus::cases())->map(fn ($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
@@ -92,24 +91,10 @@ class PurchaseOrderController extends Controller
 
     private function resolveStatus(Request $request): ?PurchaseOrderStatus
     {
-        return match (true) {
-            $request->routeIs('purchase.orders.draft') => PurchaseOrderStatus::Draft,
-            $request->routeIs('purchase.orders.pending') => PurchaseOrderStatus::Pending,
-            $request->routeIs('purchase.orders.approved') => PurchaseOrderStatus::Approved,
-            $request->routeIs('purchase.orders.cancelled') => PurchaseOrderStatus::Cancelled,
-            $request->filled('status') => PurchaseOrderStatus::tryFrom($request->string('status')->toString()),
-            default => null,
-        };
-    }
+        if (! $request->filled('status')) {
+            return null;
+        }
 
-    private function resolveTitle(Request $request): string
-    {
-        return match (true) {
-            $request->routeIs('purchase.orders.draft') => 'Draft Purchase Orders',
-            $request->routeIs('purchase.orders.pending') => 'Pending Approval',
-            $request->routeIs('purchase.orders.approved') => 'Approved Purchase Orders',
-            $request->routeIs('purchase.orders.cancelled') => 'Cancelled Purchase Orders',
-            default => 'All Purchase Orders',
-        };
+        return PurchaseOrderStatus::tryFrom($request->string('status')->toString());
     }
 }

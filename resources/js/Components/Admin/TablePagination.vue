@@ -15,11 +15,14 @@ const props = defineProps({
 });
 
 const meta = computed(() => paginationMeta(props.paginator));
+const resolvedLinks = computed(() =>
+    props.links.length > 0 ? props.links : (props.paginator?.links ?? []),
+);
 </script>
 
 <template>
     <nav v-if="meta.last_page > 1" class="flex items-center gap-1">
-        <template v-for="(link, index) in links" :key="index">
+        <template v-for="(link, index) in resolvedLinks" :key="index">
             <Link
                 v-if="link.url"
                 :href="link.url"

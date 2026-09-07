@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Crm\Services\CustomerService;
 use Modules\Pos\Enums\PosOrderStatus;
+use Modules\Pos\Enums\PosPaymentMethod;
 use Modules\Pos\Models\PosOrder;
 use Modules\Pos\Models\PosOrderItem;
 use Modules\Pos\Models\PosRegister;
@@ -54,8 +55,13 @@ class PosSaleService extends Service
         ];
     }
 
-    public function listPaginated(?string $search = null, ?PosOrderStatus $status = null, int $perPage = 25): LengthAwarePaginator
-    {
+    public function listPaginated(
+        ?string $search = null,
+        ?PosOrderStatus $status = null,
+        int $perPage = 25,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): LengthAwarePaginator {
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
 
         return PosOrder::query()
@@ -65,15 +71,14 @@ class PosSaleService extends Service
                 $inner->where('number', 'like', "%{$search}%")
                     ->orWhere('customer_name', 'like', "%{$search}%");
             }))
+            ->when($dateFrom, fn ($query, $dateFrom) => $query->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($query, $dateTo) => $query->whereDate('created_at', '<=', $dateTo))
             ->orderByDesc('created_at')
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (PosOrder $order) => $this->formatList($order));
     }
 
-    /**
-     * @return list<array{id: int, name: string, sku: ?string, type: string, price: ?string, currency: string, stock_available: string, in_stock: bool}>
-     */
     /**
      * @return list<array{id: int, name: string, code: string, email: ?string, phone: ?string, company: ?string, customer_group_id: ?int}>
      */
@@ -82,13 +87,52 @@ class PosSaleService extends Service
         return $this->customers->optionList();
     }
 
-    public function searchableProducts(?string $search = null, int $limit = 30): array
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    public function categoryOptions(): array
+    {
+        return DB::table('categories')
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('products')
+                    ->whereColumn('products.primary_category_id', 'categories.id')
+                    ->whereIn('products.status', ['active', 'approved']);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'name' => $row->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{
+     *     id: int,
+     *     name: string,
+     *     sku: ?string,
+     *     barcode: ?string,
+     *     type: string,
+     *     category_id: ?int,
+     *     price: ?string,
+     *     currency: string,
+     *     stock_available: string,
+     *     in_stock: bool
+     * }>
+     */
+    public function searchableProducts(?string $search = null, int $limit = 30, ?int $categoryId = null): array
     {
         $query = DB::table('products')
             ->where('status', '!=', 'archived')
             ->whereIn('status', ['active', 'approved'])
             ->orderBy('name')
             ->limit($limit);
+
+        if ($categoryId) {
+            $query->where('primary_category_id', $categoryId);
+        }
 
         if ($search) {
             $query->where(function ($inner) use ($search) {
@@ -98,7 +142,10 @@ class PosSaleService extends Service
             });
         }
 
-        return $query->get(['id', 'name', 'sku', 'barcode', 'type'])->map(function ($row) {
+        $rows = $query->get(['id', 'name', 'sku', 'barcode', 'type', 'primary_category_id']);
+        $imageUrls = $this->productImageUrls($rows->pluck('id')->map(fn ($id) => (int) $id)->all());
+
+        return $rows->map(function ($row) use ($imageUrls) {
             $resolved = $this->prices->resolve(productId: $row->id, quantity: 1);
             $available = $this->stock->available($row->id);
 
@@ -108,6 +155,8 @@ class PosSaleService extends Service
                 'sku' => $row->sku,
                 'barcode' => $row->barcode,
                 'type' => $row->type,
+                'category_id' => $row->primary_category_id ? (int) $row->primary_category_id : null,
+                'image_url' => $imageUrls[(int) $row->id] ?? null,
                 'price' => $resolved['resolved'] ? $resolved['price'] : null,
                 'currency' => $resolved['currency'] ?? 'BDT',
                 'stock_available' => $available['available'],
@@ -119,7 +168,18 @@ class PosSaleService extends Service
     /**
      * Exact barcode/SKU match for scanner Enter-to-add.
      *
-     * @return array{id: int, name: string, sku: ?string, barcode: ?string, type: string, price: ?string, currency: string, stock_available: string, in_stock: bool}|null
+     * @return array{
+     *     id: int,
+     *     name: string,
+     *     sku: ?string,
+     *     barcode: ?string,
+     *     type: string,
+     *     category_id: ?int,
+     *     price: ?string,
+     *     currency: string,
+     *     stock_available: string,
+     *     in_stock: bool
+     * }|null
      */
     public function findByBarcode(string $code): ?array
     {
@@ -135,7 +195,7 @@ class PosSaleService extends Service
             ->where(function ($inner) use ($code) {
                 $inner->where('barcode', $code)->orWhere('sku', $code);
             })
-            ->first(['id', 'name', 'sku', 'barcode', 'type']);
+            ->first(['id', 'name', 'sku', 'barcode', 'type', 'primary_category_id']);
 
         if ($row === null) {
             return null;
@@ -143,6 +203,7 @@ class PosSaleService extends Service
 
         $resolved = $this->prices->resolve(productId: $row->id, quantity: 1);
         $available = $this->stock->available($row->id);
+        $imageUrls = $this->productImageUrls([(int) $row->id]);
 
         return [
             'id' => $row->id,
@@ -150,6 +211,8 @@ class PosSaleService extends Service
             'sku' => $row->sku,
             'barcode' => $row->barcode,
             'type' => $row->type,
+            'category_id' => $row->primary_category_id ? (int) $row->primary_category_id : null,
+            'image_url' => $imageUrls[(int) $row->id] ?? null,
             'price' => $resolved['resolved'] ? $resolved['price'] : null,
             'currency' => $resolved['currency'] ?? 'BDT',
             'stock_available' => $available['available'],
@@ -158,13 +221,75 @@ class PosSaleService extends Service
     }
 
     /**
+     * @param  list<int>  $productIds
+     * @return array<int, string>
+     */
+    private function productImageUrls(array $productIds): array
+    {
+        if ($productIds === []) {
+            return [];
+        }
+
+        $rows = DB::table('product_media')
+            ->whereIn('product_id', $productIds)
+            ->orderByDesc('is_primary')
+            ->orderByRaw('CASE WHEN product_variant_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('sort_order')
+            ->get(['product_id', 'path']);
+
+        $urls = [];
+
+        foreach ($rows as $row) {
+            $productId = (int) $row->product_id;
+            if (isset($urls[$productId]) || blank($row->path)) {
+                continue;
+            }
+
+            $urls[$productId] = $this->publicMediaUrl((string) $row->path);
+        }
+
+        return $urls;
+    }
+
+    private function publicMediaUrl(string $path): string
+    {
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        $normalized = ltrim($path, '/');
+        if (str_starts_with($normalized, 'storage/')) {
+            $normalized = substr($normalized, strlen('storage/'));
+        }
+
+        // Keep host-relative so Laragon / artisan serve / Vite all resolve correctly.
+        return '/storage/'.$normalized;
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public function paymentMethodOptions(): array
+    {
+        return collect(PosPaymentMethod::terminalOptions())
+            ->map(fn (PosPaymentMethod $method) => [
+                'value' => $method->value,
+                'label' => $method->label(),
+            ])
+            ->all();
+    }
+
+    /**
      * @param  array{
      *     pos_register_id?: int|null,
      *     customer_id?: int|null,
      *     customer_name?: string|null,
+     *     payment_method?: string|null,
+     *     payment_reference?: string|null,
      *     amount_tendered?: float|int|string|null,
+     *     cart_discount_amount?: float|int|string|null,
      *     notes?: string|null,
-     *     items: list<array{product_id: int, product_variant_id?: int|null, quantity: float|int|string}>
+     *     items: list<array{product_id: int, product_variant_id?: int|null, quantity: float|int|string, discount_percent?: float|int|string|null}>
      * }  $data
      */
     public function completeSale(array $data, ?int $userId = null): PosOrder
@@ -186,11 +311,26 @@ class PosSaleService extends Service
                 ?? DB::table('warehouses')->where('is_default', true)->value('id')
                 ?? DB::table('warehouses')->orderBy('id')->value('id');
 
-            $lines = $this->buildLines($data['items'] ?? []);
-            $subtotal = $this->sumLines($lines);
-            $tendered = isset($data['amount_tendered']) ? (float) $data['amount_tendered'] : (float) $subtotal;
+            $paymentMethod = PosPaymentMethod::tryFrom((string) ($data['payment_method'] ?? PosPaymentMethod::Cash->value))
+                ?? PosPaymentMethod::Cash;
 
-            if ($tendered + 0.00005 < (float) $subtotal) {
+            $lines = $this->buildLines($data['items'] ?? []);
+            $subtotal = $this->sumGross($lines);
+            $lineDiscountTotal = $this->sumDiscounts($lines);
+            $afterLines = (float) $subtotal - (float) $lineDiscountTotal;
+            $cartDiscount = max(0, min($afterLines, (float) ($data['cart_discount_amount'] ?? 0)));
+            $discountTotal = number_format((float) $lineDiscountTotal + $cartDiscount, 4, '.', '');
+            $grandTotal = number_format(max(0, $afterLines - $cartDiscount), 4, '.', '');
+
+            $tendered = isset($data['amount_tendered']) && $data['amount_tendered'] !== '' && $data['amount_tendered'] !== null
+                ? (float) $data['amount_tendered']
+                : (float) $grandTotal;
+
+            if (! $paymentMethod->requiresCashTender()) {
+                $tendered = (float) $grandTotal;
+            }
+
+            if ($tendered + 0.00005 < (float) $grandTotal) {
                 throw ValidationException::withMessages([
                     'amount_tendered' => 'Amount tendered is less than the total.',
                 ]);
@@ -212,18 +352,24 @@ class PosSaleService extends Service
                 'warehouse_id' => $warehouseId,
                 'customer_id' => $data['customer_id'] ?? null,
                 'customer_name' => $data['customer_name'] ?? 'Walk-in',
-                'payment_method' => 'cash',
+                'payment_method' => $paymentMethod->value,
+                'payment_reference' => $paymentMethod->requiresCashTender()
+                    ? null
+                    : ($data['payment_reference'] ?? null),
                 'currency' => $lines[0]['currency'] ?? 'BDT',
                 'subtotal' => $subtotal,
-                'grand_total' => $subtotal,
+                'discount_total' => $discountTotal,
+                'grand_total' => $grandTotal,
                 'amount_tendered' => number_format($tendered, 4, '.', ''),
-                'change_due' => number_format($tendered - (float) $subtotal, 4, '.', ''),
+                'change_due' => number_format(max(0, $tendered - (float) $grandTotal), 4, '.', ''),
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $userId,
                 'completed_at' => now(),
             ]);
 
             foreach ($lines as $index => $line) {
+                unset($line['gross']);
+
                 $order->items()->create([
                     ...$line,
                     'sort_order' => $index,
@@ -314,8 +460,13 @@ class PosSaleService extends Service
             'customer_id' => $order->customer_id,
             'customer_name' => $order->customer_name,
             'payment_method' => $order->payment_method,
+            'payment_method_label' => PosPaymentMethod::tryFrom((string) $order->payment_method)?->label()
+                ?? ucfirst((string) $order->payment_method),
+            'payment_reference' => $order->payment_reference,
             'amount_tendered' => (string) $order->amount_tendered,
             'change_due' => (string) $order->change_due,
+            'subtotal' => (string) $order->subtotal,
+            'discount_total' => (string) $order->discount_total,
             'notes' => $order->notes,
             'completed_at' => $order->completed_at?->toIso8601String(),
             'cancelled_at' => $order->cancelled_at?->toIso8601String(),
@@ -326,6 +477,8 @@ class PosSaleService extends Service
                 'name' => $item->name,
                 'quantity' => (string) $item->quantity,
                 'unit_price' => (string) $item->unit_price,
+                'discount_percent' => (string) $item->discount_percent,
+                'discount_amount' => (string) $item->discount_amount,
                 'line_total' => (string) $item->line_total,
                 'currency' => $item->currency,
             ])->all(),
@@ -333,7 +486,7 @@ class PosSaleService extends Service
     }
 
     /**
-     * @param  list<array{product_id: int, product_variant_id?: int|null, quantity: float|int|string}>  $items
+     * @param  list<array{product_id: int, product_variant_id?: int|null, quantity: float|int|string, discount_percent?: float|int|string|null}>  $items
      * @return list<array<string, mixed>>
      */
     private function buildLines(array $items): array
@@ -350,6 +503,7 @@ class PosSaleService extends Service
             $productId = (int) $item['product_id'];
             $variantId = ! empty($item['product_variant_id']) ? (int) $item['product_variant_id'] : null;
             $quantity = (float) $item['quantity'];
+            $discountPercent = max(0, min(100, (float) ($item['discount_percent'] ?? 0)));
 
             if ($quantity <= 0) {
                 throw ValidationException::withMessages([
@@ -397,6 +551,9 @@ class PosSaleService extends Service
             }
 
             $unit = (float) $resolved['price'];
+            $gross = $unit * $quantity;
+            $discountAmount = $gross * ($discountPercent / 100);
+            $lineTotal = $gross - $discountAmount;
 
             $lines[] = [
                 'product_id' => $productId,
@@ -405,8 +562,11 @@ class PosSaleService extends Service
                 'name' => $name,
                 'quantity' => number_format($quantity, 4, '.', ''),
                 'unit_price' => number_format($unit, 4, '.', ''),
-                'line_total' => number_format($unit * $quantity, 4, '.', ''),
+                'discount_percent' => number_format($discountPercent, 4, '.', ''),
+                'discount_amount' => number_format($discountAmount, 4, '.', ''),
+                'line_total' => number_format($lineTotal, 4, '.', ''),
                 'currency' => $resolved['currency'] ?? 'BDT',
+                'gross' => number_format($gross, 4, '.', ''),
             ];
         }
 
@@ -414,14 +574,28 @@ class PosSaleService extends Service
     }
 
     /**
-     * @param  list<array{line_total: string}>  $lines
+     * @param  list<array{gross: string}>  $lines
      */
-    private function sumLines(array $lines): string
+    private function sumGross(array $lines): string
     {
         $total = 0.0;
 
         foreach ($lines as $line) {
-            $total += (float) $line['line_total'];
+            $total += (float) $line['gross'];
+        }
+
+        return number_format($total, 4, '.', '');
+    }
+
+    /**
+     * @param  list<array{discount_amount: string}>  $lines
+     */
+    private function sumDiscounts(array $lines): string
+    {
+        $total = 0.0;
+
+        foreach ($lines as $line) {
+            $total += (float) $line['discount_amount'];
         }
 
         return number_format($total, 4, '.', '');

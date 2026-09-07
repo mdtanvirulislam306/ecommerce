@@ -10,6 +10,7 @@ use Modules\Pos\Http\Controllers\PosTerminalController;
 
 Route::get('/terminal', [PosTerminalController::class, 'index'])->name('terminal');
 Route::get('/terminal/search', [PosTerminalController::class, 'search'])->name('terminal.search');
+Route::post('/terminal/customers', [PosTerminalController::class, 'storeCustomer'])->name('terminal.customers.store');
 Route::post('/terminal/complete', [PosTerminalController::class, 'complete'])->name('terminal.complete');
 
 Route::prefix('registers')->name('registers.')->group(function () {

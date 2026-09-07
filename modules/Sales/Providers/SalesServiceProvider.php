@@ -10,6 +10,7 @@ class SalesServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'sales');
     }
 
     public static function registerRoutes(): void

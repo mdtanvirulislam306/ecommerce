@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import Modal from '@/Components/Modal.vue';
@@ -9,7 +10,8 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { paginationMeta } from '@/utils/paginationMeta';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -26,6 +28,7 @@ const perPage = ref(props.filters.per_page ?? 25);
 const showModal = ref(false);
 const editing = ref(null);
 const deleteTarget = ref(null);
+const meta = computed(() => paginationMeta(props.suppliers));
 
 const form = useForm({
     supplier_group_id: '',
@@ -78,7 +81,9 @@ const save = () => {
 };
 
 const confirmDelete = () => {
-    if (!deleteTarget.value) return;
+    if (!deleteTarget.value) {
+        return;
+    }
     deleteForm.delete(route('purchase.suppliers.destroy', deleteTarget.value.id), {
         preserveScroll: true,
         onSuccess: () => {
@@ -112,10 +117,25 @@ watch(search, () => {
 
         <div class="admin-data-table">
             <div class="admin-data-table__toolbar">
-                <h2 class="text-sm font-semibold text-brand-navy">All suppliers</h2>
+                <div>
+                    <h2 class="text-sm font-semibold text-brand-navy">All suppliers</h2>
+                    <p class="text-xs text-gray-500">{{ meta.total }} total</p>
+                </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <input v-model="search" type="search" placeholder="Search…" class="admin-data-table__search" />
-                    <PrimaryButton type="button" @click="openCreate">Add supplier</PrimaryButton>
+                    <input v-model="search" type="search" placeholder="Search suppliers…" class="admin-data-table__search" />
+                    <Link
+                        :href="route('purchase.suppliers.groups')"
+                        class="text-sm font-medium text-brand-navy hover:text-brand-orange"
+                    >
+                        Groups
+                    </Link>
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-lg bg-brand-orange px-4 py-2 text-sm font-medium text-white hover:bg-brand-orange-dark"
+                        @click="openCreate"
+                    >
+                        Add supplier
+                    </button>
                 </div>
             </div>
 
@@ -135,37 +155,63 @@ watch(search, () => {
                     <tbody>
                         <tr v-for="supplier in suppliers.data" :key="supplier.id" class="admin-data-table__row">
                             <td class="admin-data-table__cell font-medium text-brand-navy">{{ supplier.name }}</td>
-                            <td class="admin-data-table__cell text-gray-600">{{ supplier.code }}</td>
+                            <td class="admin-data-table__cell font-mono text-xs text-gray-600">{{ supplier.code }}</td>
                             <td class="admin-data-table__cell text-gray-600">{{ supplier.group_name || '—' }}</td>
                             <td class="admin-data-table__cell text-sm text-gray-500">
                                 <div>{{ supplier.email || '—' }}</div>
-                                <div>{{ supplier.phone }}</div>
+                                <div v-if="supplier.phone">{{ supplier.phone }}</div>
                             </td>
-                            <td class="admin-data-table__cell">{{ supplier.purchase_orders_count }}</td>
+                            <td class="admin-data-table__cell tabular-nums">{{ supplier.purchase_orders_count }}</td>
                             <td class="admin-data-table__cell">
                                 <span
-                                    class="rounded-full px-2 py-0.5 text-xs font-medium"
+                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
                                     :class="supplier.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'"
                                 >
                                     {{ supplier.is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td class="admin-data-table__cell text-right">
-                                <button type="button" class="admin-data-table__action" @click="openEdit(supplier)">Edit</button>
-                                <button type="button" class="admin-data-table__action text-red-600" @click="deleteTarget = supplier">
-                                    Delete
-                                </button>
+                            <td class="admin-data-table__cell">
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <button
+                                        type="button"
+                                        class="admin-data-table__action"
+                                        title="Edit"
+                                        @click="openEdit(supplier)"
+                                    >
+                                        <ActionIcon name="edit" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="admin-data-table__action admin-data-table__action--danger"
+                                        title="Delete"
+                                        @click="deleteTarget = supplier"
+                                    >
+                                        <ActionIcon name="delete" />
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="!suppliers.data.length">
-                            <td colspan="7" class="px-5 py-12 text-center text-sm text-gray-500">No suppliers yet.</td>
+                            <td colspan="7" class="px-5 py-12 text-center">
+                                <p class="text-sm text-gray-500">
+                                    {{ search ? 'No suppliers match your search.' : 'No suppliers yet.' }}
+                                </p>
+                                <button
+                                    v-if="!search"
+                                    type="button"
+                                    class="mt-3 text-sm font-medium text-brand-orange hover:underline"
+                                    @click="openCreate"
+                                >
+                                    Add your first supplier
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
                     <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
                 </select>
                 <TablePagination :paginator="suppliers" :links="suppliers.links" />
@@ -187,7 +233,7 @@ watch(search, () => {
                 </div>
                 <div>
                     <InputLabel value="Group" />
-                    <select v-model="form.supplier_group_id" class="mt-1 w-full rounded-md border-gray-300 text-sm">
+                    <select v-model="form.supplier_group_id" class="admin-filter-select mt-1 block w-full">
                         <option value="">None</option>
                         <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
                     </select>
@@ -206,7 +252,10 @@ watch(search, () => {
                     <InputLabel value="Address" />
                     <TextInput v-model="form.address" class="mt-1 block w-full" />
                 </div>
-                <label class="flex items-center gap-2 text-sm"><Checkbox v-model:checked="form.is_active" /> Active</label>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <Checkbox v-model:checked="form.is_active" />
+                    Active
+                </label>
                 <div class="flex justify-end gap-2">
                     <SecondaryButton type="button" @click="showModal = false">Cancel</SecondaryButton>
                     <PrimaryButton type="submit" :disabled="form.processing">Save</PrimaryButton>

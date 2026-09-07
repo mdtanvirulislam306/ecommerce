@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Modules\Sales\Enums\CreditNoteStatus;
+use Modules\Sales\Enums\SalesOrderStatusField;
 use Modules\Sales\Models\SalesCreditNote;
 use Modules\Sales\Models\SalesInvoice;
 
@@ -15,6 +16,7 @@ class CreditNoteService extends Service
 {
     public function __construct(
         private readonly InvoiceService $invoices,
+        private readonly SalesOrderService $orders,
     ) {}
 
     public function listPaginated(?string $search = null, int $perPage = 25): LengthAwarePaginator
@@ -89,6 +91,22 @@ class CreditNoteService extends Service
             ]);
 
             $this->invoices->recalculateBalances($invoice);
+
+            if ($invoice->sales_order_id) {
+                $this->orders->logActivity(
+                    order: $invoice->sales_order_id,
+                    field: SalesOrderStatusField::CreditNote,
+                    from: null,
+                    to: $note->number,
+                    userId: $userId,
+                    note: sprintf(
+                        'Credit note %s issued for %s %s',
+                        $note->number,
+                        $note->currency,
+                        number_format((float) $note->amount, 2, '.', ''),
+                    ),
+                );
+            }
 
             Log::info('sales.credit_note.issued', [
                 'credit_note_id' => $note->id,

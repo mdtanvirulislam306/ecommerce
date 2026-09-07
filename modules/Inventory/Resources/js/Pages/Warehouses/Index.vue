@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import Modal from '@/Components/Modal.vue';
@@ -80,7 +81,10 @@ const save = () => {
 };
 
 const confirmDelete = () => {
-    if (!deleteTarget.value) return;
+    if (!deleteTarget.value) {
+        return;
+    }
+
     deleteForm.delete(route('inventory.warehouses.destroy', deleteTarget.value.id), {
         preserveScroll: true,
         onSuccess: () => {
@@ -114,10 +118,19 @@ watch(search, () => {
 
         <div class="admin-data-table">
             <div class="admin-data-table__toolbar">
-                <h2 class="text-sm font-semibold text-brand-navy">Warehouses</h2>
+                <div>
+                    <h2 class="text-sm font-semibold text-brand-navy">Warehouses</h2>
+                    <p class="text-xs text-gray-500">{{ meta.total }} total</p>
+                </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <input v-model="search" type="search" placeholder="Search…" class="admin-data-table__search" />
-                    <PrimaryButton type="button" @click="openCreate">Add warehouse</PrimaryButton>
+                    <input v-model="search" type="search" placeholder="Search warehouses…" class="admin-data-table__search" />
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-lg bg-brand-orange px-4 py-2 text-sm font-medium text-white hover:bg-brand-orange-dark"
+                        @click="openCreate"
+                    >
+                        Add warehouse
+                    </button>
                 </div>
             </div>
 
@@ -135,43 +148,65 @@ watch(search, () => {
                         <tr v-for="warehouse in warehouses.data" :key="warehouse.id" class="admin-data-table__row">
                             <td class="admin-data-table__cell">
                                 <div class="font-medium text-brand-navy">{{ warehouse.name }}</div>
-                                <div v-if="warehouse.address" class="text-xs text-gray-400">{{ warehouse.address }}</div>
+                                <div v-if="warehouse.address" class="mt-0.5 text-xs text-gray-400">{{ warehouse.address }}</div>
                             </td>
-                            <td class="admin-data-table__cell text-gray-600">{{ warehouse.code }}</td>
+                            <td class="admin-data-table__cell font-mono text-xs text-gray-600">{{ warehouse.code }}</td>
                             <td class="admin-data-table__cell">
                                 <span
-                                    class="rounded-full px-2 py-0.5 text-xs font-medium"
+                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
                                     :class="warehouse.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'"
                                 >
                                     {{ warehouse.is_active ? 'Active' : 'Inactive' }}
                                 </span>
                                 <span
                                     v-if="warehouse.is_default"
-                                    class="ml-1 rounded-full bg-brand-orange/10 px-2 py-0.5 text-xs text-brand-orange"
+                                    class="ml-1 inline-flex rounded-full bg-brand-orange/10 px-2.5 py-0.5 text-xs font-medium text-brand-orange"
                                 >
                                     Default
                                 </span>
                             </td>
-                            <td class="admin-data-table__cell text-right">
-                                <button type="button" class="admin-data-table__action" @click="openEdit(warehouse)">Edit</button>
-                                <button
-                                    type="button"
-                                    class="admin-data-table__action text-red-600"
-                                    @click="deleteTarget = warehouse"
-                                >
-                                    Delete
-                                </button>
+                            <td class="admin-data-table__cell">
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <button
+                                        type="button"
+                                        class="admin-data-table__action"
+                                        title="Edit"
+                                        @click="openEdit(warehouse)"
+                                    >
+                                        <ActionIcon name="edit" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="admin-data-table__action admin-data-table__action--danger"
+                                        title="Delete"
+                                        @click="deleteTarget = warehouse"
+                                    >
+                                        <ActionIcon name="delete" />
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="!warehouses.data.length">
-                            <td colspan="4" class="px-5 py-12 text-center text-sm text-gray-500">No warehouses yet.</td>
+                            <td colspan="4" class="px-5 py-12 text-center">
+                                <p class="text-sm text-gray-500">
+                                    {{ search ? 'No warehouses match your search.' : 'No warehouses yet.' }}
+                                </p>
+                                <button
+                                    v-if="!search"
+                                    type="button"
+                                    class="mt-3 text-sm font-medium text-brand-orange hover:underline"
+                                    @click="openCreate"
+                                >
+                                    Add your first warehouse
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
                     <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
                 </select>
                 <TablePagination :paginator="warehouses" :links="warehouses.links" />
@@ -197,8 +232,14 @@ watch(search, () => {
                     <InputLabel value="Address" />
                     <TextInput v-model="form.address" class="mt-1 block w-full" />
                 </div>
-                <label class="flex items-center gap-2 text-sm"><Checkbox v-model:checked="form.is_default" /> Default warehouse</label>
-                <label class="flex items-center gap-2 text-sm"><Checkbox v-model:checked="form.is_active" /> Active</label>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <Checkbox v-model:checked="form.is_default" />
+                    Default warehouse
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <Checkbox v-model:checked="form.is_active" />
+                    Active
+                </label>
                 <div class="flex justify-end gap-2">
                     <SecondaryButton type="button" @click="showModal = false">Cancel</SecondaryButton>
                     <PrimaryButton type="submit" :disabled="form.processing">Save</PrimaryButton>

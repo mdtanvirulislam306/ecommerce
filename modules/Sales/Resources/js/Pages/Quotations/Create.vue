@@ -1,6 +1,8 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import CustomerPicker from '@/Components/Admin/CustomerPicker.vue';
+import SearchableSelect from '@/Components/Admin/SearchableSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -15,6 +17,13 @@ const props = defineProps({
     customerGroups: { type: Array, default: () => [] },
     warehouses: { type: Array, default: () => [] },
 });
+
+const productSelectOptions = computed(() =>
+    props.productOptions.map((p) => ({
+        id: p.id,
+        name: p.sku ? `${p.name} (${p.sku})` : p.name,
+    })),
+);
 
 const defaultWarehouse = props.warehouses.find((w) => w.is_default)?.id ?? props.warehouses[0]?.id ?? '';
 
@@ -79,6 +88,9 @@ const onProductChange = async (index) => {
     await previewLine(index);
 };
 
+const variantOptions = (index) =>
+    (variantsByProduct[index] || []).map((v) => ({ id: v.id, name: v.sku }));
+
 const addLine = () => {
     form.items.push({ product_id: '', product_variant_id: '', quantity: 1 });
 };
@@ -141,17 +153,25 @@ const submit = (status) => {
                 </div>
                 <div>
                     <InputLabel value="Customer group" />
-                    <select v-model="form.customer_group_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="">Default price list</option>
-                        <option v-for="g in customerGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.customer_group_id"
+                            :options="customerGroups"
+                            placeholder="Default price list"
+                            search-placeholder="Search group…"
+                        />
+                    </div>
                 </div>
                 <div>
                     <InputLabel value="Warehouse" />
-                    <select v-model="form.warehouse_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="">Default warehouse</option>
-                        <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.warehouse_id"
+                            :options="warehouses"
+                            placeholder="Default warehouse"
+                            search-placeholder="Search warehouse…"
+                        />
+                    </div>
                 </div>
                 <div class="sm:col-span-2">
                     <InputLabel value="Notes" />
@@ -173,28 +193,27 @@ const submit = (status) => {
                 >
                     <div class="sm:col-span-5">
                         <InputLabel value="Product" />
-                        <select
-                            v-model="line.product_id"
-                            class="mt-1 block w-full rounded-md border-gray-300 text-sm"
-                            required
-                            @change="onProductChange(index)"
-                        >
-                            <option value="">Select…</option>
-                            <option v-for="p in productOptions" :key="p.id" :value="p.id">
-                                {{ p.name }} {{ p.sku ? `(${p.sku})` : '' }}
-                            </option>
-                        </select>
+                        <div class="mt-1">
+                            <SearchableSelect
+                                v-model="line.product_id"
+                                :options="productSelectOptions"
+                                placeholder="Search product…"
+                                :allow-clear="false"
+                                @update:model-value="onProductChange(index)"
+                            />
+                        </div>
                     </div>
                     <div v-if="variantsByProduct[index]?.length" class="sm:col-span-3">
                         <InputLabel value="Variant" />
-                        <select
-                            v-model="line.product_variant_id"
-                            class="mt-1 block w-full rounded-md border-gray-300 text-sm"
-                            @change="previewLine(index)"
-                        >
-                            <option value="">Default</option>
-                            <option v-for="v in variantsByProduct[index]" :key="v.id" :value="v.id">{{ v.sku }}</option>
-                        </select>
+                        <div class="mt-1">
+                            <SearchableSelect
+                                v-model="line.product_variant_id"
+                                :options="variantOptions(index)"
+                                placeholder="Default"
+                                search-placeholder="Search variant…"
+                                @update:model-value="previewLine(index)"
+                            />
+                        </div>
                     </div>
                     <div class="sm:col-span-2">
                         <InputLabel value="Qty" />
@@ -207,17 +226,18 @@ const submit = (status) => {
                             @change="previewLine(index)"
                         />
                     </div>
-                    <div class="sm:col-span-2 flex flex-col justify-end">
+                    <div class="sm:col-span-2 flex items-end justify-between gap-2">
                         <p v-if="lineMeta[index]?.resolved" class="text-sm font-medium text-brand-navy">
                             {{ lineMeta[index].currency }} {{ Number(lineMeta[index].price).toFixed(2) }}
                         </p>
                         <button
                             v-if="form.items.length > 1"
                             type="button"
-                            class="mt-1 text-left text-xs text-red-600"
+                            class="admin-data-table__action admin-data-table__action--danger mb-0.5"
+                            title="Remove line"
                             @click="removeLine(index)"
                         >
-                            Remove
+                            <ActionIcon name="delete" />
                         </button>
                     </div>
                 </div>

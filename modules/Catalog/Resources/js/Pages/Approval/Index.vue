@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -72,7 +73,24 @@ watch(search, () => {
     searchTimer = setTimeout(visitIndex, 300);
 });
 
-watch(queue, visitIndex);
+watch(queue, () => {
+    selected.value = [];
+    visitIndex();
+});
+
+const setQueue = (value) => {
+    queue.value = value;
+};
+
+const runRowAction = (routeName, productId) => {
+    bulkForm.product_ids = [productId];
+    bulkForm.post(route(routeName), {
+        preserveScroll: true,
+        onSuccess: () => {
+            selected.value = selected.value.filter((id) => id !== productId);
+        },
+    });
+};
 </script>
 
 <template>
@@ -84,18 +102,28 @@ watch(queue, visitIndex);
         </div>
 
         <div class="mb-5 grid gap-3 sm:grid-cols-3">
-            <div class="admin-card">
+            <button
+                type="button"
+                class="admin-card text-left transition hover:border-brand-teal/30 hover:shadow-sm"
+                :class="queue === 'pending' ? 'ring-1 ring-amber-200' : ''"
+                @click="setQueue('pending')"
+            >
                 <p class="text-xs text-gray-500">Pending review</p>
                 <p class="text-2xl font-semibold text-amber-700">{{ stats.pending }}</p>
-            </div>
-            <div class="admin-card">
+            </button>
+            <button
+                type="button"
+                class="admin-card text-left transition hover:border-brand-teal/30 hover:shadow-sm"
+                :class="queue === 'approved' ? 'ring-1 ring-sky-200' : ''"
+                @click="setQueue('approved')"
+            >
                 <p class="text-xs text-gray-500">Approved (awaiting activation)</p>
                 <p class="text-2xl font-semibold text-sky-700">{{ stats.approved }}</p>
-            </div>
+            </button>
             <div class="admin-card">
                 <p class="text-xs text-gray-500">Draft</p>
                 <p class="text-2xl font-semibold text-brand-navy">{{ stats.draft }}</p>
-                <Link :href="route('products.draft')" class="mt-1 text-xs text-brand-orange hover:underline">
+                <Link :href="route('products.index', { status: 'draft' })" class="mt-1 text-xs text-brand-orange hover:underline">
                     View drafts →
                 </Link>
             </div>
@@ -112,7 +140,7 @@ watch(queue, visitIndex);
                                 ? 'bg-brand-navy text-white'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         "
-                        @click="queue = 'pending'"
+                        @click="setQueue('pending')"
                     >
                         Pending review
                     </button>
@@ -124,7 +152,7 @@ watch(queue, visitIndex);
                                 ? 'bg-brand-navy text-white'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         "
-                        @click="queue = 'approved'"
+                        @click="setQueue('approved')"
                     >
                         Ready to activate
                     </button>
@@ -132,7 +160,7 @@ watch(queue, visitIndex);
                 <input v-model="search" type="search" placeholder="Search…" class="admin-data-table__search" />
             </div>
 
-            <div v-if="selected.length" class="border-b border-gray-100 bg-gray-50/80 px-5 py-3 flex flex-wrap gap-2">
+            <div v-if="selected.length" class="flex flex-wrap gap-2 border-b border-gray-100 bg-gray-50/80 px-5 py-3">
                 <span class="text-xs text-gray-500">{{ selected.length }} selected</span>
                 <template v-if="isPendingQueue">
                     <PrimaryButton type="button" class="!py-1 !text-xs" @click="bulkAction('products.approval.bulk-approve')">
@@ -175,8 +203,44 @@ watch(queue, visitIndex);
                             <td class="admin-data-table__cell text-gray-600">{{ product.sku || '—' }}</td>
                             <td class="admin-data-table__cell text-gray-600">{{ product.brand || '—' }}</td>
                             <td class="admin-data-table__cell">
-                                <div class="flex justify-end gap-1">
-                                    <Link :href="route('products.show', product.id)" class="admin-data-table__action">View</Link>
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <Link
+                                        :href="route('products.show', product.id)"
+                                        class="admin-data-table__action"
+                                        title="View"
+                                    >
+                                        <ActionIcon name="view" />
+                                    </Link>
+                                    <template v-if="isPendingQueue">
+                                        <button
+                                            type="button"
+                                            class="admin-data-table__action text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                            title="Approve"
+                                            :disabled="bulkForm.processing"
+                                            @click="runRowAction('products.approval.bulk-approve', product.id)"
+                                        >
+                                            <ActionIcon name="approve" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="admin-data-table__action admin-data-table__action--danger"
+                                            title="Reject"
+                                            :disabled="bulkForm.processing"
+                                            @click="runRowAction('products.approval.bulk-reject', product.id)"
+                                        >
+                                            <ActionIcon name="reject" />
+                                        </button>
+                                    </template>
+                                    <button
+                                        v-else
+                                        type="button"
+                                        class="admin-data-table__action text-sky-600 hover:bg-sky-50 hover:text-sky-700"
+                                        title="Activate"
+                                        :disabled="bulkForm.processing"
+                                        @click="runRowAction('products.approval.bulk-activate', product.id)"
+                                    >
+                                        <ActionIcon name="activate" />
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -190,7 +254,7 @@ watch(queue, visitIndex);
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
                     <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
                 </select>
                 <TablePagination :paginator="products" :links="products.links" />

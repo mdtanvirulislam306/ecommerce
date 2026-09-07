@@ -1,6 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import { formatDateTime } from '@/utils/formatDateTime';
 import { paginationMeta } from '@/utils/paginationMeta';
@@ -14,15 +15,15 @@ const props = defineProps({
     },
     filters: {
         type: Object,
-        default: () => ({ search: '', per_page: 25 }),
+        default: () => ({ search: '', status: null, type: null, per_page: 25 }),
     },
-    listRoute: {
-        type: String,
-        default: 'products.index',
+    statusOptions: {
+        type: Array,
+        default: () => [],
     },
-    listTitle: {
-        type: String,
-        default: 'All Products',
+    typeOptions: {
+        type: Array,
+        default: () => [],
     },
     perPageOptions: {
         type: Array,
@@ -34,6 +35,8 @@ const page = usePage();
 const flash = computed(() => page.props.flash);
 
 const search = ref(props.filters.search ?? '');
+const status = ref(props.filters.status ?? '');
+const type = ref(props.filters.type ?? '');
 const perPage = ref(props.filters.per_page ?? 25);
 
 const deleteForm = useForm({});
@@ -70,22 +73,31 @@ const statusMeta = {
     archived: { label: 'Archived', class: 'bg-orange-50 text-brand-orange ring-1 ring-orange-200' },
 };
 
-const typeBadge = (type) =>
-    type === 'variant'
+const typeBadge = (value) =>
+    value === 'variant'
         ? 'bg-brand-navy/10 text-brand-navy ring-1 ring-brand-navy/10'
         : 'bg-brand-teal/10 text-brand-teal-dark ring-1 ring-brand-teal/20';
 
 const meta = computed(() => paginationMeta(props.products));
 const hasProducts = computed(() => meta.value.total > 0);
-const showEmptyState = computed(() => !hasProducts.value && !search.value);
+const hasActiveFilters = computed(() => Boolean(search.value || status.value || type.value));
+const showEmptyCatalog = computed(() => !hasProducts.value && !hasActiveFilters.value);
+const listTitle = computed(() => {
+    if (!status.value) return 'All Products';
+    return statusMeta[status.value]?.label
+        ? `${statusMeta[status.value].label} products`
+        : 'All Products';
+});
 
 let searchTimer = null;
 
 const visitIndex = () => {
     router.get(
-        route(props.listRoute),
+        route('products.index'),
         {
             search: search.value || undefined,
+            status: status.value || undefined,
+            type: type.value || undefined,
             per_page: perPage.value,
         },
         {
@@ -105,9 +117,24 @@ watch(
     () => props.filters,
     (filters) => {
         search.value = filters.search ?? '';
+        status.value = filters.status ?? '';
+        type.value = filters.type ?? '';
         perPage.value = filters.per_page ?? 25;
     },
 );
+
+const setStatus = (value) => {
+    status.value = value;
+    visitIndex();
+};
+
+const clearFilters = () => {
+    clearTimeout(searchTimer);
+    search.value = '';
+    status.value = '';
+    type.value = '';
+    visitIndex();
+};
 
 const formatDate = formatDateTime;
 </script>
@@ -120,7 +147,7 @@ const formatDate = formatDateTime;
             {{ flash.success }}
         </div>
 
-        <div v-if="showEmptyState" class="admin-card text-center">
+        <div v-if="showEmptyCatalog" class="admin-card text-center">
             <p class="text-gray-500">No products yet.</p>
             <Link
                 :href="route('products.create')"
@@ -137,7 +164,7 @@ const formatDate = formatDateTime;
                     <p class="text-xs text-gray-500">{{ meta.total }} total</p>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                     <div class="relative">
                         <svg
                             class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
@@ -155,6 +182,23 @@ const formatDate = formatDateTime;
                             class="admin-data-table__search"
                         />
                     </div>
+
+                    <select v-model="type" class="admin-filter-select" @change="visitIndex">
+                        <option value="">All types</option>
+                        <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">
+                            {{ opt.label }}
+                        </option>
+                    </select>
+
+                    <button
+                        v-if="hasActiveFilters"
+                        type="button"
+                        class="text-xs font-medium text-gray-500 hover:text-brand-navy"
+                        @click="clearFilters"
+                    >
+                        Clear
+                    </button>
+
                     <Link
                         :href="route('products.create')"
                         class="inline-flex items-center gap-1.5 rounded-lg bg-brand-orange px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-orange-dark"
@@ -167,7 +211,44 @@ const formatDate = formatDateTime;
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <!-- Status chips -->
+            <div class="flex flex-wrap gap-1.5 border-b border-gray-100 px-4 py-2.5 sm:px-5">
+                <button
+                    type="button"
+                    class="rounded-full px-2.5 py-1 text-[11px] font-medium transition ring-1"
+                    :class="
+                        !status
+                            ? 'bg-brand-navy text-white ring-brand-navy'
+                            : 'bg-white text-gray-600 ring-gray-200 hover:ring-gray-300'
+                    "
+                    @click="setStatus('')"
+                >
+                    All
+                </button>
+                <button
+                    v-for="opt in statusOptions"
+                    :key="opt.value"
+                    type="button"
+                    class="rounded-full px-2.5 py-1 text-[11px] font-medium transition ring-1"
+                    :class="
+                        status === opt.value
+                            ? 'bg-brand-navy text-white ring-brand-navy'
+                            : 'bg-white text-gray-600 ring-gray-200 hover:ring-gray-300'
+                    "
+                    @click="setStatus(opt.value)"
+                >
+                    {{ opt.label }}
+                </button>
+            </div>
+
+            <div v-if="!hasProducts" class="px-4 py-12 text-center sm:px-5">
+                <p class="text-sm text-gray-500">No products match these filters.</p>
+                <button type="button" class="mt-2 text-sm font-medium text-brand-teal hover:underline" @click="clearFilters">
+                    Clear filters
+                </button>
+            </div>
+
+            <div v-else class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead class="border-b border-gray-200 bg-gray-50/90">
                         <tr class="admin-data-table__head">
@@ -228,12 +309,8 @@ const formatDate = formatDateTime;
                                     {{ product.status_label }}
                                 </span>
                             </td>
-                            <td class="admin-data-table__cell text-gray-600">
-                                {{ product.brand || '—' }}
-                            </td>
-                            <td class="admin-data-table__cell text-gray-600">
-                                {{ formatDate(product.created_at) }}
-                            </td>
+                            <td class="admin-data-table__cell text-gray-600">{{ product.brand || '—' }}</td>
+                            <td class="admin-data-table__cell text-gray-500">{{ formatDate(product.created_at) }}</td>
                             <td class="admin-data-table__cell">
                                 <div class="flex items-center justify-end gap-0.5">
                                     <Link
@@ -241,19 +318,14 @@ const formatDate = formatDateTime;
                                         class="admin-data-table__action"
                                         title="View"
                                     >
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
+                                        <ActionIcon name="view" />
                                     </Link>
                                     <Link
                                         :href="route('products.edit', product.id)"
                                         class="admin-data-table__action"
                                         title="Edit"
                                     >
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
+                                        <ActionIcon name="edit" />
                                     </Link>
                                     <button
                                         type="button"
@@ -261,52 +333,30 @@ const formatDate = formatDateTime;
                                         title="Delete"
                                         @click="openDeleteModal(product)"
                                     >
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
+                                        <ActionIcon name="delete" />
                                     </button>
                                 </div>
-                            </td>
-                        </tr>
-
-                        <tr v-if="products.data.length === 0">
-                            <td colspan="8" class="px-5 py-12 text-center text-sm text-gray-500">
-                                No products match your search.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div class="admin-data-table__footer">
-                <div class="flex flex-wrap items-center gap-3">
-                    <label class="flex items-center gap-2 text-xs text-gray-600">
-                        <span>Rows per page</span>
-                        <select
-                            v-model.number="perPage"
-                            class="rounded-lg border border-gray-200 bg-white py-1.5 pl-2 pr-7 text-xs font-medium text-brand-navy shadow-sm focus:border-brand-teal focus:outline-none focus:ring-1 focus:ring-brand-teal"
-                            @change="visitIndex"
-                        >
-                            <option v-for="option in perPageOptions" :key="option" :value="option">
-                                {{ option }}
-                            </option>
-                        </select>
-                    </label>
-                    <span>
-                        Showing {{ meta.from ?? 0 }}–{{ meta.to ?? 0 }} of {{ meta.total }}
-                    </span>
-                </div>
-
+            <div v-if="hasProducts" class="admin-data-table__footer">
                 <TablePagination :paginator="products" :links="products.links" />
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500">Per page</span>
+                    <select v-model="perPage" class="admin-filter-select !py-1.5 text-xs" @change="visitIndex">
+                        <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }}</option>
+                    </select>
+                </div>
             </div>
         </div>
 
         <DeleteConfirmModal
-            :show="Boolean(deleteTarget)"
-            title="Delete this product?"
-            message="This product and its variants will be permanently removed. This action cannot be undone."
-            :item-name="deleteTarget?.name"
-            confirm-label="Delete product"
+            :show="!!deleteTarget"
+            title="Delete product"
+            :message="deleteTarget ? `Remove “${deleteTarget.name}”? This cannot be undone.` : ''"
             :processing="deleteForm.processing"
             @close="closeDeleteModal"
             @confirm="confirmDelete"

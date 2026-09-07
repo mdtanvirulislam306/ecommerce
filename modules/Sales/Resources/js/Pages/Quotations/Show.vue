@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { formatDateTime } from '@/utils/formatDateTime';
@@ -14,10 +15,10 @@ const page = usePage();
 const flash = computed(() => page.props.flash);
 
 const statusMeta = {
-    draft: { class: 'bg-gray-100 text-gray-600' },
-    sent: { class: 'bg-sky-50 text-sky-800' },
-    accepted: { class: 'bg-emerald-50 text-emerald-700' },
-    expired: { class: 'bg-red-50 text-red-700' },
+    draft: { class: 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' },
+    sent: { class: 'bg-sky-50 text-sky-800 ring-1 ring-sky-200' },
+    accepted: { class: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
+    expired: { class: 'bg-red-50 text-red-700 ring-1 ring-red-200' },
 };
 
 const postAction = (routeName) => {
@@ -33,13 +34,29 @@ const postAction = (routeName) => {
             {{ flash.success }}
         </div>
 
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <Link :href="route('sales.quotations.all')" class="text-sm text-brand-navy hover:text-brand-orange">
-                ← Quotations
-            </Link>
-            <div class="flex flex-wrap gap-2">
-                <Link v-if="quotation.can_edit" :href="route('sales.quotations.edit', quotation.id)">
-                    <SecondaryButton type="button">Edit</SecondaryButton>
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <Link
+                    :href="route('sales.quotations.all')"
+                    class="text-sm font-medium text-brand-navy hover:text-brand-orange"
+                >
+                    ← Quotations
+                </Link>
+                <span
+                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    :class="statusMeta[quotation.status]?.class"
+                >
+                    {{ quotation.status_label }}
+                </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <Link
+                    v-if="quotation.can_edit"
+                    :href="route('sales.quotations.edit', quotation.id)"
+                    class="admin-data-table__action"
+                    title="Edit"
+                >
+                    <ActionIcon name="edit" />
                 </Link>
                 <SecondaryButton v-if="quotation.can_mark_sent" type="button" @click="postAction('sales.quotations.mark-sent')">
                     Mark sent
@@ -64,7 +81,7 @@ const postAction = (routeName) => {
                 <Link
                     v-if="quotation.sales_order_id"
                     :href="route('sales.orders.show', quotation.sales_order_id)"
-                    class="text-sm text-brand-orange hover:underline"
+                    class="text-sm font-medium text-brand-orange hover:underline"
                 >
                     View order →
                 </Link>
@@ -73,15 +90,7 @@ const postAction = (routeName) => {
 
         <div class="mb-6 grid gap-4 lg:grid-cols-3">
             <section class="admin-card lg:col-span-2 space-y-3">
-                <div class="flex items-center gap-3">
-                    <h2 class="text-sm font-semibold text-brand-navy">{{ quotation.number }}</h2>
-                    <span
-                        class="rounded-full px-2.5 py-0.5 text-xs font-medium"
-                        :class="statusMeta[quotation.status]?.class"
-                    >
-                        {{ quotation.status_label }}
-                    </span>
-                </div>
+                <h2 class="text-sm font-semibold text-brand-navy">{{ quotation.number }}</h2>
                 <p class="text-sm text-gray-600">
                     Customer: {{ quotation.customer_name }}
                     <Link
@@ -105,27 +114,34 @@ const postAction = (routeName) => {
             </section>
         </div>
 
-        <section class="admin-card overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="text-left text-xs text-gray-500">
-                    <tr>
-                        <th class="pb-2">Item</th>
-                        <th class="pb-2">SKU</th>
-                        <th class="pb-2">Qty</th>
-                        <th class="pb-2">Unit</th>
-                        <th class="pb-2">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="item in quotation.items" :key="item.id" class="border-t border-gray-50">
-                        <td class="py-2">{{ item.name }}</td>
-                        <td class="py-2 text-gray-500">{{ item.sku || '—' }}</td>
-                        <td class="py-2">{{ Number(item.quantity) }}</td>
-                        <td class="py-2">{{ Number(item.unit_price).toFixed(2) }}</td>
-                        <td class="py-2 font-medium">{{ Number(item.line_total).toFixed(2) }}</td>
-                    </tr>
-                </tbody>
-            </table>
+        <section class="admin-card !p-0 overflow-hidden">
+            <div class="border-b border-gray-100 px-5 py-4">
+                <h2 class="text-sm font-semibold text-brand-navy">Line items</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="border-b border-gray-200 bg-gray-50/90">
+                        <tr class="admin-data-table__head">
+                            <th>Item</th>
+                            <th>SKU</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="item in quotation.items" :key="item.id" class="admin-data-table__row">
+                            <td class="admin-data-table__cell font-medium text-brand-navy">{{ item.name }}</td>
+                            <td class="admin-data-table__cell text-gray-500">{{ item.sku || '—' }}</td>
+                            <td class="admin-data-table__cell tabular-nums">{{ Number(item.quantity) }}</td>
+                            <td class="admin-data-table__cell tabular-nums">{{ Number(item.unit_price).toFixed(2) }}</td>
+                            <td class="admin-data-table__cell text-right tabular-nums font-medium">
+                                {{ Number(item.line_total).toFixed(2) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
     </AdminLayout>
 </template>

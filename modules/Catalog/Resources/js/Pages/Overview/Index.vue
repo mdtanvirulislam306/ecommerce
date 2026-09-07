@@ -36,6 +36,7 @@ const kpiCards = computed(() => [
         value: props.stats.products.total,
         hint: 'Entire catalog',
         href: 'products.index',
+        query: {},
         accent: 'border-l-brand-navy',
         valueClass: 'text-brand-navy',
     },
@@ -43,7 +44,8 @@ const kpiCards = computed(() => [
         label: 'Active',
         value: props.stats.products.active,
         hint: 'Ready to sell',
-        href: 'products.active',
+        href: 'products.index',
+        query: { status: 'active' },
         accent: 'border-l-emerald-500',
         valueClass: 'text-emerald-700',
     },
@@ -52,6 +54,7 @@ const kpiCards = computed(() => [
         value: props.stats.products.pending_review,
         hint: 'Needs approval',
         href: 'products.approval.index',
+        query: {},
         accent: 'border-l-amber-500',
         valueClass: 'text-amber-700',
     },
@@ -59,7 +62,8 @@ const kpiCards = computed(() => [
         label: 'Draft',
         value: props.stats.products.draft,
         hint: 'Still editing',
-        href: 'products.draft',
+        href: 'products.index',
+        query: { status: 'draft' },
         accent: 'border-l-gray-400',
         valueClass: 'text-brand-navy',
     },
@@ -109,8 +113,8 @@ const masterData = computed(() => [
     { label: 'Collections', value: props.stats.master_data.collections, href: 'products.collections.index' },
     { label: 'Units', value: props.stats.master_data.units, href: 'products.units.index' },
     { label: 'SKU variants', value: props.stats.master_data.variants, href: 'products.variants.index' },
-    { label: 'Attributes', value: props.stats.master_data.attributes, href: null },
-    { label: 'Families', value: props.stats.master_data.families, href: null },
+    { label: 'Attributes', value: props.stats.master_data.attributes, href: 'products.attributes.index' },
+    { label: 'Families', value: props.stats.master_data.families, href: 'products.families.index' },
 ]);
 
 const primaryActions = [
@@ -121,6 +125,8 @@ const primaryActions = [
 
 const secondaryActions = [
     { label: 'All products', href: 'products.index', desc: 'Browse & filter catalog' },
+    { label: 'Attributes', href: 'products.attributes.index', desc: 'Color, size & specs' },
+    { label: 'Families', href: 'products.families.index', desc: 'Product family groups' },
     { label: 'Brands', href: 'products.brands.index', desc: 'Brand master data' },
     { label: 'Categories', href: 'products.categories.index', desc: 'Category tree' },
     { label: 'Settings', href: 'products.settings.index', desc: 'Catalog defaults' },
@@ -160,7 +166,7 @@ const secondaryActions = [
             <Link
                 v-for="card in kpiCards"
                 :key="card.label"
-                :href="route(card.href)"
+                :href="route(card.href, card.query || {})"
                 class="admin-card border-l-4 p-5 transition hover:border-brand-teal/30 hover:shadow-md"
                 :class="card.accent"
             >

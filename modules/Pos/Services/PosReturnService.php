@@ -19,8 +19,12 @@ class PosReturnService extends Service
         private readonly StockAvailability $stock,
     ) {}
 
-    public function listPaginated(?string $search = null, int $perPage = 25): LengthAwarePaginator
-    {
+    public function listPaginated(
+        ?string $search = null,
+        int $perPage = 25,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): LengthAwarePaginator {
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
 
         return PosReturn::query()
@@ -33,6 +37,8 @@ class PosReturnService extends Service
                         ->where('number', 'like', "%{$search}%")
                         ->orWhere('customer_name', 'like', "%{$search}%"));
             }))
+            ->when($dateFrom, fn ($query, $dateFrom) => $query->whereDate('returned_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($query, $dateTo) => $query->whereDate('returned_at', '<=', $dateTo))
             ->orderByDesc('returned_at')
             ->paginate($perPage)
             ->withQueryString()

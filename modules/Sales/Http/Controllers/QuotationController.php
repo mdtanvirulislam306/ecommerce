@@ -29,7 +29,6 @@ class QuotationController extends Controller
                 'status' => $status?->value,
                 'per_page' => in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25,
             ],
-            'listTitle' => $this->resolveTitle($request),
             'statusOptions' => collect(QuotationStatus::cases())->map(fn ($case) => [
                 'value' => $case->value,
                 'label' => $case->label(),
@@ -119,32 +118,10 @@ class QuotationController extends Controller
 
     private function resolveStatus(Request $request): ?QuotationStatus
     {
-        foreach ([
-            'sales.quotations.draft' => QuotationStatus::Draft,
-            'sales.quotations.sent' => QuotationStatus::Sent,
-            'sales.quotations.accepted' => QuotationStatus::Accepted,
-            'sales.quotations.expired' => QuotationStatus::Expired,
-        ] as $route => $status) {
-            if ($request->routeIs($route)) {
-                return $status;
-            }
+        if (! $request->filled('status')) {
+            return null;
         }
 
-        if ($request->filled('status')) {
-            return QuotationStatus::tryFrom($request->string('status')->toString());
-        }
-
-        return null;
-    }
-
-    private function resolveTitle(Request $request): string
-    {
-        return match (true) {
-            $request->routeIs('sales.quotations.draft') => 'Draft Quotations',
-            $request->routeIs('sales.quotations.sent') => 'Sent Quotations',
-            $request->routeIs('sales.quotations.accepted') => 'Accepted Quotations',
-            $request->routeIs('sales.quotations.expired') => 'Expired Quotations',
-            default => 'All Quotations',
-        };
+        return QuotationStatus::tryFrom($request->string('status')->toString());
     }
 }

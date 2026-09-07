@@ -56,13 +56,21 @@ const submitImport = () => {
     <Head title="Import / Export Products" />
 
     <AdminLayout title="Import / Export">
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <p class="text-sm text-gray-500">
+                CSV import and export for simple products. Variant products are exported for reference but must be managed in the admin UI.
+            </p>
+            <Link
+                :href="route('products.index')"
+                class="text-sm font-medium text-brand-navy hover:text-brand-orange"
+            >
+                ← Back to products
+            </Link>
+        </div>
+
         <div v-if="flash?.success" class="mb-4 rounded-lg bg-brand-teal/10 px-4 py-3 text-sm text-brand-navy">
             {{ flash.success }}
         </div>
-
-        <p class="mb-5 text-sm text-gray-500">
-            CSV import and export for simple products. Variant products are exported for reference but must be managed in the admin UI.
-        </p>
 
         <div class="grid gap-6 lg:grid-cols-2">
             <section class="admin-card space-y-4">

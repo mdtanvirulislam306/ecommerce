@@ -25,6 +25,14 @@ class ShopController extends Controller
         ]);
     }
 
+    public function show(string $slug, StorefrontCatalogService $catalog, CartService $cart): Response
+    {
+        return Inertia::render('Ecommerce/Shop/Show', [
+            'product' => $catalog->productBySlug($slug),
+            'cartCount' => $cart->count(),
+        ]);
+    }
+
     public function cart(CartService $cart): Response
     {
         return Inertia::render('Ecommerce/Shop/Cart', [

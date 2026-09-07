@@ -1,6 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import Modal from '@/Components/Modal.vue';
 import InputError from '@/Components/InputError.vue';
@@ -123,14 +124,17 @@ const visitIndex = () => {
                                 {{ row.to_unit?.name }} ({{ row.to_unit?.code }})
                             </td>
                             <td class="admin-data-table__cell font-medium text-gray-700">{{ row.factor }}</td>
-                            <td class="admin-data-table__cell text-right">
-                                <button
-                                    type="button"
-                                    class="admin-data-table__action admin-data-table__action--danger"
-                                    @click="deleteTarget = row"
-                                >
-                                    Delete
-                                </button>
+                            <td class="admin-data-table__cell">
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <button
+                                        type="button"
+                                        class="admin-data-table__action admin-data-table__action--danger"
+                                        title="Delete"
+                                        @click="deleteTarget = row"
+                                    >
+                                        <ActionIcon name="delete" />
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="conversions.data.length === 0">
@@ -143,7 +147,7 @@ const visitIndex = () => {
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
                     <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
                 </select>
                 <TablePagination :paginator="conversions" :links="conversions.links" />

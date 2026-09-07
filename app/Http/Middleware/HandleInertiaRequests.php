@@ -57,6 +57,7 @@ class HandleInertiaRequests extends Middleware
             },
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
+                'receipt' => $request->session()->get('receipt'),
             ],
             'cartCount' => fn () => (int) collect($request->session()->get('ecommerce_cart', []))->sum('quantity'),
         ];

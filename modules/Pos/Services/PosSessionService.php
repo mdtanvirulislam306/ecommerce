@@ -12,19 +12,25 @@ use Modules\Pos\Models\PosSession;
 
 class PosSessionService extends Service
 {
-    public function listOpen(?string $search = null, int $perPage = 25): LengthAwarePaginator
+    public function listOpen(?string $search = null, int $perPage = 25, ?string $dateFrom = null, ?string $dateTo = null): LengthAwarePaginator
     {
-        return $this->listPaginated($search, PosSessionStatus::Open, $perPage);
+        return $this->listPaginated($search, PosSessionStatus::Open, $perPage, $dateFrom, $dateTo);
     }
 
-    public function listHistory(?string $search = null, int $perPage = 25): LengthAwarePaginator
+    public function listHistory(?string $search = null, int $perPage = 25, ?string $dateFrom = null, ?string $dateTo = null): LengthAwarePaginator
     {
-        return $this->listPaginated($search, PosSessionStatus::Closed, $perPage);
+        return $this->listPaginated($search, PosSessionStatus::Closed, $perPage, $dateFrom, $dateTo);
     }
 
-    public function listPaginated(?string $search = null, ?PosSessionStatus $status = null, int $perPage = 25): LengthAwarePaginator
-    {
+    public function listPaginated(
+        ?string $search = null,
+        ?PosSessionStatus $status = null,
+        int $perPage = 25,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): LengthAwarePaginator {
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
+        $dateColumn = $status === PosSessionStatus::Closed ? 'closed_at' : 'opened_at';
 
         return PosSession::query()
             ->with(['register:id,name,code', 'openedByUser:id,name'])
@@ -33,7 +39,9 @@ class PosSessionService extends Service
             ->when($search, fn ($query, $search) => $query->whereHas('register', fn ($register) => $register
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('code', 'like', "%{$search}%")))
-            ->orderByDesc('opened_at')
+            ->when($dateFrom, fn ($query, $dateFrom) => $query->whereDate($dateColumn, '>=', $dateFrom))
+            ->when($dateTo, fn ($query, $dateTo) => $query->whereDate($dateColumn, '<=', $dateTo))
+            ->orderByDesc($dateColumn)
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (PosSession $session) => $this->format($session));
@@ -57,13 +65,22 @@ class PosSessionService extends Service
             ->all();
     }
 
-    public function listCashMovements(?int $sessionId = null, int $perPage = 25): LengthAwarePaginator
-    {
+    public function listCashMovements(
+        ?int $sessionId = null,
+        int $perPage = 25,
+        ?string $type = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): LengthAwarePaginator {
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 25;
+        $type = in_array($type, ['in', 'out'], true) ? $type : null;
 
         return PosCashMovement::query()
             ->with(['session.register:id,name'])
             ->when($sessionId, fn ($query, $sessionId) => $query->where('pos_session_id', $sessionId))
+            ->when($type, fn ($query, $type) => $query->where('type', $type))
+            ->when($dateFrom, fn ($query, $dateFrom) => $query->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($query, $dateTo) => $query->whereDate('created_at', '<=', $dateTo))
             ->orderByDesc('created_at')
             ->paginate($perPage)
             ->withQueryString()

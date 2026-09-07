@@ -5,6 +5,7 @@ namespace Modules\Inventory\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Inventory\Http\Requests\StoreInventoryBatchRequest;
@@ -27,7 +28,11 @@ class InventoryTrackingController extends Controller
             ),
             'warehouses' => $warehouses->options(),
             'products' => $this->productOptions(),
-            'filters' => ['search' => $request->string('search')->toString()],
+            'filters' => [
+                'search' => $request->string('search')->toString(),
+                'per_page' => $request->integer('per_page', 25),
+            ],
+            'perPageOptions' => [10, 25, 50, 100],
         ]);
     }
 
@@ -65,7 +70,9 @@ class InventoryTrackingController extends Controller
             'filters' => [
                 'search' => $request->string('search')->toString(),
                 'status' => $request->string('status')->toString(),
+                'per_page' => $request->integer('per_page', 25),
             ],
+            'perPageOptions' => [10, 25, 50, 100],
         ]);
     }
 
@@ -113,7 +120,7 @@ class InventoryTrackingController extends Controller
      */
     private function productOptions(): array
     {
-        return \Illuminate\Support\Facades\DB::table('products')
+        return DB::table('products')
             ->where('status', '!=', 'archived')
             ->orderBy('name')
             ->limit(500)

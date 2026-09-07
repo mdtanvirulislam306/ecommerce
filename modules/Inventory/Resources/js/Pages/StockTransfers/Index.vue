@@ -1,7 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { formatDateTime } from '@/utils/formatDateTime';
 import { paginationMeta } from '@/utils/paginationMeta';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -45,17 +44,26 @@ watch(search, () => {
             {{ flash.success }}
         </div>
 
-        <p class="mb-4 text-sm text-gray-500">
-            Move stock between warehouses. Each transfer writes transfer_out and transfer_in movements.
-        </p>
-
         <div class="admin-data-table">
             <div class="admin-data-table__toolbar">
-                <h2 class="text-sm font-semibold text-brand-navy">Transfers</h2>
+                <div>
+                    <h2 class="text-sm font-semibold text-brand-navy">Transfers</h2>
+                    <p class="text-xs text-gray-500">
+                        {{ meta.total }} total · moves stock between warehouses
+                    </p>
+                </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <input v-model="search" type="search" placeholder="Search transfers…" class="admin-data-table__search" />
-                    <Link :href="route('inventory.stock-transfer.create')">
-                        <PrimaryButton type="button">New transfer</PrimaryButton>
+                    <input
+                        v-model="search"
+                        type="search"
+                        placeholder="Search transfers…"
+                        class="admin-data-table__search"
+                    />
+                    <Link
+                        :href="route('inventory.stock-transfer.create')"
+                        class="inline-flex items-center rounded-lg bg-brand-orange px-4 py-2 text-sm font-medium text-white hover:bg-brand-orange-dark"
+                    >
+                        New transfer
                     </Link>
                 </div>
             </div>
@@ -76,16 +84,18 @@ watch(search, () => {
                         <tr v-for="row in transfers.data" :key="row.id" class="admin-data-table__row">
                             <td class="admin-data-table__cell font-medium text-brand-navy">{{ row.number }}</td>
                             <td class="admin-data-table__cell">
-                                {{ row.from_warehouse }}
-                                <span class="text-xs text-gray-400">({{ row.from_warehouse_code }})</span>
+                                <span class="text-brand-navy">{{ row.from_warehouse }}</span>
+                                <span class="ml-1 text-xs text-gray-400">({{ row.from_warehouse_code }})</span>
                             </td>
                             <td class="admin-data-table__cell">
-                                {{ row.to_warehouse }}
-                                <span class="text-xs text-gray-400">({{ row.to_warehouse_code }})</span>
+                                <span class="text-brand-navy">{{ row.to_warehouse }}</span>
+                                <span class="ml-1 text-xs text-gray-400">({{ row.to_warehouse_code }})</span>
                             </td>
-                            <td class="admin-data-table__cell text-gray-600">{{ row.items_count }}</td>
+                            <td class="admin-data-table__cell tabular-nums text-gray-600">{{ row.items_count }}</td>
                             <td class="admin-data-table__cell">
-                                <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                                <span
+                                    class="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700"
+                                >
                                     {{ row.status_label }}
                                 </span>
                             </td>
@@ -94,14 +104,25 @@ watch(search, () => {
                             </td>
                         </tr>
                         <tr v-if="!transfers.data.length">
-                            <td colspan="6" class="px-5 py-12 text-center text-sm text-gray-500">No transfers yet.</td>
+                            <td colspan="6" class="px-5 py-12 text-center">
+                                <p class="text-sm text-gray-500">
+                                    {{ search ? 'No transfers match your search.' : 'No transfers yet.' }}
+                                </p>
+                                <Link
+                                    v-if="!search"
+                                    :href="route('inventory.stock-transfer.create')"
+                                    class="mt-3 inline-block text-sm font-medium text-brand-orange hover:underline"
+                                >
+                                    Create first transfer
+                                </Link>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
                     <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
                 </select>
                 <TablePagination :paginator="transfers" :links="transfers.links" />

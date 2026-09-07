@@ -8,6 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Modules\Sales\Enums\SalesOrderStatusField;
 use Modules\Sales\Enums\SalesReturnStatus;
 use Modules\Sales\Models\SalesInvoice;
 use Modules\Sales\Models\SalesOrder;
@@ -116,6 +117,17 @@ class SalesReturnService extends Service
                 return $this->confirm($return->fresh(['items']), $userId);
             }
 
+            if ($orderId) {
+                app(SalesOrderService::class)->logActivity(
+                    order: $orderId,
+                    field: SalesOrderStatusField::Return,
+                    from: null,
+                    to: $return->number,
+                    userId: $userId,
+                    note: 'Return '.$return->number.' created (draft)',
+                );
+            }
+
             return $return->fresh(['items']);
         });
     }
@@ -157,6 +169,17 @@ class SalesReturnService extends Service
                 'status' => SalesReturnStatus::Confirmed,
                 'confirmed_at' => now(),
             ]);
+
+            if ($return->sales_order_id) {
+                app(SalesOrderService::class)->logActivity(
+                    order: $return->sales_order_id,
+                    field: SalesOrderStatusField::Return,
+                    from: SalesReturnStatus::Draft->value,
+                    to: SalesReturnStatus::Confirmed->value,
+                    userId: $userId,
+                    note: 'Return '.$return->number.' confirmed & restocked',
+                );
+            }
 
             Log::info('sales.return.confirmed', [
                 'return_id' => $return->id,

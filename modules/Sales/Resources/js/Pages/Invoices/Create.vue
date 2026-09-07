@@ -1,14 +1,23 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import SearchableSelect from '@/Components/Admin/SearchableSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     orders: { type: Array, default: () => [] },
 });
+
+const orderOptions = computed(() =>
+    props.orders.map((order) => ({
+        id: order.id,
+        name: `${order.number} — ${order.customer_name} (${order.currency} ${Number(order.grand_total).toFixed(2)})`,
+    })),
+);
 
 const form = useForm({
     sales_order_id: '',
@@ -38,13 +47,14 @@ const submit = () => {
         <form class="admin-card max-w-xl space-y-4" @submit.prevent="submit">
             <div>
                 <InputLabel value="Confirmed sales order" />
-                <select v-model="form.sales_order_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm" required>
-                    <option value="">Select order…</option>
-                    <option v-for="order in orders" :key="order.id" :value="order.id">
-                        {{ order.number }} — {{ order.customer_name }} ({{ order.currency }}
-                        {{ Number(order.grand_total).toFixed(2) }})
-                    </option>
-                </select>
+                <div class="mt-1">
+                    <SearchableSelect
+                        v-model="form.sales_order_id"
+                        :options="orderOptions"
+                        placeholder="Search order…"
+                        :allow-clear="false"
+                    />
+                </div>
                 <InputError class="mt-1" :message="form.errors.sales_order_id" />
                 <p v-if="!orders.length" class="mt-2 text-xs text-amber-700">
                     No confirmed orders available to invoice.

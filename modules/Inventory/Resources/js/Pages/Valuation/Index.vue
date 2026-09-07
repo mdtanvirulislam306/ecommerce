@@ -1,6 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 const props = defineProps({
@@ -22,41 +22,60 @@ watch(warehouseId, (value) => {
 
 <template>
     <Head title="Stock valuation" />
+
     <AdminLayout title="Stock valuation">
-        <p class="mb-4 text-sm text-gray-500">Values use Retail list unit price × on-hand quantity.</p>
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <select v-model="warehouseId" class="rounded-md border-gray-300 text-sm">
-                <option value="">All warehouses</option>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-            </select>
-            <p class="text-lg font-semibold text-brand-navy">
-                Total: {{ valuation.currency }} {{ valuation.total_value }}
-            </p>
+        <div class="admin-data-table">
+            <div class="admin-data-table__toolbar">
+                <div>
+                    <h2 class="text-sm font-semibold text-brand-navy">Valuation</h2>
+                    <p class="text-xs text-gray-500">Retail list unit price × on-hand quantity</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <select v-model="warehouseId" class="admin-filter-select text-xs">
+                        <option value="">All warehouses</option>
+                        <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+                    </select>
+                    <div class="rounded-lg bg-brand-navy/5 px-3 py-2 text-sm font-semibold text-brand-navy">
+                        {{ valuation.currency }} {{ valuation.total_value }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead class="border-b border-gray-200 bg-gray-50/90">
+                        <tr class="admin-data-table__head">
+                            <th>Product</th>
+                            <th>Warehouse</th>
+                            <th>On hand</th>
+                            <th>Unit</th>
+                            <th class="text-right">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(row, i) in valuation.rows" :key="i" class="admin-data-table__row">
+                            <td class="admin-data-table__cell font-medium text-brand-navy">{{ row.product_name }}</td>
+                            <td class="admin-data-table__cell text-gray-600">{{ row.warehouse_name }}</td>
+                            <td class="admin-data-table__cell tabular-nums">{{ row.on_hand }}</td>
+                            <td class="admin-data-table__cell tabular-nums text-gray-600">{{ row.unit_cost }}</td>
+                            <td class="admin-data-table__cell text-right tabular-nums font-medium text-brand-navy">
+                                {{ row.value }}
+                            </td>
+                        </tr>
+                        <tr v-if="!valuation.rows.length">
+                            <td colspan="5" class="px-5 py-12 text-center">
+                                <p class="text-sm text-gray-500">No stock levels to value.</p>
+                                <Link
+                                    :href="route('inventory.stock-adjustment.index')"
+                                    class="mt-3 inline-block text-sm font-medium text-brand-orange hover:underline"
+                                >
+                                    Adjust stock
+                                </Link>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <section class="admin-card overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="text-left text-xs text-gray-500">
-                    <tr>
-                        <th class="pb-2">Product</th>
-                        <th class="pb-2">Warehouse</th>
-                        <th class="pb-2">On hand</th>
-                        <th class="pb-2">Unit</th>
-                        <th class="pb-2 text-right">Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="(row, i) in valuation.rows" :key="i" class="border-t border-gray-50">
-                        <td class="py-2 font-medium">{{ row.product_name }}</td>
-                        <td class="py-2">{{ row.warehouse_name }}</td>
-                        <td class="py-2">{{ row.on_hand }}</td>
-                        <td class="py-2">{{ row.unit_cost }}</td>
-                        <td class="py-2 text-right">{{ row.value }}</td>
-                    </tr>
-                    <tr v-if="!valuation.rows.length">
-                        <td colspan="5" class="py-8 text-center text-gray-500">No stock levels.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
     </AdminLayout>
 </template>

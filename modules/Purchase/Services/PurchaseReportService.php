@@ -29,7 +29,7 @@ class PurchaseReportService extends Service
             ->groupBy('status')
             ->get()
             ->mapWithKeys(fn ($row) => [
-                $row->status => [
+                ($row->status instanceof PurchaseOrderStatus ? $row->status->value : (string) $row->status) => [
                     'count' => (int) $row->total,
                     'amount' => number_format((float) $row->amount, 2, '.', ''),
                 ],

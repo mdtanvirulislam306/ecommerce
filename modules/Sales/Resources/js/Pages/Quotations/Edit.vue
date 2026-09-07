@@ -1,13 +1,15 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import CustomerPicker from '@/Components/Admin/CustomerPicker.vue';
+import SearchableSelect from '@/Components/Admin/SearchableSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 
 const props = defineProps({
     quotation: { type: Object, required: true },
@@ -16,6 +18,18 @@ const props = defineProps({
     customerGroups: { type: Array, default: () => [] },
     warehouses: { type: Array, default: () => [] },
 });
+
+const productSelectOptions = computed(() =>
+    props.productOptions.map((p) => ({
+        id: p.id,
+        name: p.sku ? `${p.name} (${p.sku})` : p.name,
+    })),
+);
+
+const statusOptions = [
+    { id: 'draft', name: 'Draft' },
+    { id: 'sent', name: 'Sent' },
+];
 
 const form = useForm({
     customer_id: props.quotation.customer_id || '',
@@ -65,6 +79,9 @@ const onProductChange = async (index) => {
     form.items[index].product_variant_id = '';
     await loadVariants(form.items[index].product_id, index);
 };
+
+const variantOptions = (index) =>
+    (variantsByProduct[index] || []).map((v) => ({ id: v.id, name: v.sku }));
 
 const addLine = () => {
     form.items.push({ product_id: '', product_variant_id: '', quantity: 1 });
@@ -118,24 +135,36 @@ const submit = () => {
                 </div>
                 <div>
                     <InputLabel value="Customer group" />
-                    <select v-model="form.customer_group_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="">Default</option>
-                        <option v-for="g in customerGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.customer_group_id"
+                            :options="customerGroups"
+                            placeholder="Default"
+                            search-placeholder="Search group…"
+                        />
+                    </div>
                 </div>
                 <div>
                     <InputLabel value="Warehouse" />
-                    <select v-model="form.warehouse_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="">Default</option>
-                        <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.warehouse_id"
+                            :options="warehouses"
+                            placeholder="Default"
+                            search-placeholder="Search warehouse…"
+                        />
+                    </div>
                 </div>
                 <div>
                     <InputLabel value="Status" />
-                    <select v-model="form.status" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="draft">Draft</option>
-                        <option value="sent">Sent</option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.status"
+                            :options="statusOptions"
+                            placeholder="Status"
+                            :allow-clear="false"
+                        />
+                    </div>
                 </div>
                 <div class="sm:col-span-2">
                     <InputLabel value="Notes" />
@@ -154,33 +183,36 @@ const submit = () => {
                     class="grid gap-3 rounded-lg border border-gray-100 p-4 sm:grid-cols-12"
                 >
                     <div class="sm:col-span-5">
-                        <select
+                        <SearchableSelect
                             v-model="line.product_id"
-                            class="block w-full rounded-md border-gray-300 text-sm"
-                            required
-                            @change="onProductChange(index)"
-                        >
-                            <option value="">Product…</option>
-                            <option v-for="p in productOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
-                        </select>
+                            :options="productSelectOptions"
+                            placeholder="Search product…"
+                            :allow-clear="false"
+                            @update:model-value="onProductChange(index)"
+                        />
                     </div>
                     <div class="sm:col-span-3">
-                        <select
+                        <SearchableSelect
                             v-model="line.product_variant_id"
-                            class="block w-full rounded-md border-gray-300 text-sm"
+                            :options="variantOptions(index)"
+                            placeholder="Variant"
+                            search-placeholder="Search variant…"
                             :disabled="!(variantsByProduct[index] || []).length"
-                        >
-                            <option value="">Variant</option>
-                            <option v-for="v in variantsByProduct[index] || []" :key="v.id" :value="v.id">{{ v.sku }}</option>
-                        </select>
+                        />
                     </div>
                     <div class="sm:col-span-2">
                         <TextInput v-model="line.quantity" type="number" min="0.0001" step="any" class="block w-full" />
                     </div>
-                    <div class="sm:col-span-2">
-                        <SecondaryButton v-if="form.items.length > 1" type="button" @click="removeLine(index)">
-                            Remove
-                        </SecondaryButton>
+                    <div class="flex items-center justify-end sm:col-span-2">
+                        <button
+                            v-if="form.items.length > 1"
+                            type="button"
+                            class="admin-data-table__action admin-data-table__action--danger"
+                            title="Remove line"
+                            @click="removeLine(index)"
+                        >
+                            <ActionIcon name="delete" />
+                        </button>
                     </div>
                 </div>
             </section>

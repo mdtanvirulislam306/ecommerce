@@ -7,7 +7,9 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { formatDateTime } from '@/utils/formatDateTime';
+import { paginationMeta } from '@/utils/paginationMeta';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -22,6 +24,7 @@ const flash = computed(() => page.props.flash);
 const search = ref(props.filters.search ?? '');
 const perPage = ref(props.filters.per_page ?? 25);
 const showModal = ref(false);
+const meta = computed(() => paginationMeta(props.returns));
 
 const form = useForm({
     purchase_order_id: '',
@@ -96,17 +99,26 @@ watch(search, () => {
 
         <div class="admin-data-table">
             <div class="admin-data-table__toolbar">
-                <h2 class="text-sm font-semibold text-brand-navy">Purchase returns</h2>
+                <div>
+                    <h2 class="text-sm font-semibold text-brand-navy">Purchase returns</h2>
+                    <p class="text-xs text-gray-500">{{ meta.total }} returns</p>
+                </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <input v-model="search" type="search" placeholder="Search…" class="admin-data-table__search" />
-                    <PrimaryButton type="button" @click="openCreate">New return</PrimaryButton>
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-lg bg-brand-orange px-4 py-2 text-sm font-medium text-white hover:bg-brand-orange-dark"
+                        @click="openCreate"
+                    >
+                        New return
+                    </button>
                 </div>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full">
-                    <thead>
-                        <tr>
+                    <thead class="border-b border-gray-200 bg-gray-50/90">
+                        <tr class="admin-data-table__head">
                             <th>Return #</th>
                             <th>PO</th>
                             <th>Supplier</th>
@@ -116,64 +128,97 @@ watch(search, () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="row in returns.data" :key="row.id">
-                            <td class="font-medium text-brand-navy">{{ row.number }}</td>
-                            <td>{{ row.order_number }}</td>
-                            <td>{{ row.supplier_name }}</td>
-                            <td>{{ row.currency }} {{ Number(row.grand_total).toFixed(2) }}</td>
-                            <td>{{ row.reason || '—' }}</td>
-                            <td class="text-sm text-gray-500">{{ row.returned_at ? new Date(row.returned_at).toLocaleString() : '—' }}</td>
+                        <tr v-for="row in returns.data" :key="row.id" class="admin-data-table__row">
+                            <td class="admin-data-table__cell font-medium text-brand-navy">{{ row.number }}</td>
+                            <td class="admin-data-table__cell">
+                                <Link
+                                    v-if="row.purchase_order_id"
+                                    :href="route('purchase.orders.show', row.purchase_order_id)"
+                                    class="text-brand-navy hover:text-brand-orange"
+                                >
+                                    {{ row.order_number }}
+                                </Link>
+                                <span v-else>{{ row.order_number }}</span>
+                            </td>
+                            <td class="admin-data-table__cell text-gray-600">{{ row.supplier_name }}</td>
+                            <td class="admin-data-table__cell tabular-nums">
+                                {{ row.currency }} {{ Number(row.grand_total).toFixed(2) }}
+                            </td>
+                            <td class="admin-data-table__cell text-gray-600">{{ row.reason || '—' }}</td>
+                            <td class="admin-data-table__cell text-sm text-gray-500">
+                                {{ row.returned_at ? formatDateTime(row.returned_at) : '—' }}
+                            </td>
                         </tr>
                         <tr v-if="!returns.data.length">
-                            <td colspan="6" class="py-10 text-center text-gray-500">No purchase returns yet.</td>
+                            <td colspan="6" class="px-5 py-12 text-center">
+                                <p class="text-sm text-gray-500">
+                                    {{ search ? 'No returns match your search.' : 'No purchase returns yet.' }}
+                                </p>
+                                <button
+                                    v-if="!search"
+                                    type="button"
+                                    class="mt-3 text-sm font-medium text-brand-orange hover:underline"
+                                    @click="openCreate"
+                                >
+                                    Create first return
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <TablePagination
-                :paginator="returns"
-                :per-page="perPage"
-                :per-page-options="perPageOptions"
-                @change-page="(p) => router.get(route('purchase.returns'), { search: search || undefined, per_page: perPage, page: p }, { preserveState: true, replace: true })"
-                @change-per-page="(v) => { perPage = v; visitIndex(); }"
-            />
+            <div class="admin-data-table__footer">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
+                    <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
+                </select>
+                <TablePagination :paginator="returns" :links="returns.links" />
+            </div>
         </div>
 
         <Modal :show="showModal" max-width="2xl" @close="showModal = false">
-            <div class="p-6">
+            <form class="space-y-4 p-6" @submit.prevent="save">
                 <h3 class="text-lg font-semibold text-brand-navy">New purchase return</h3>
-                <form class="mt-4 space-y-4" @submit.prevent="save">
-                    <div>
-                        <InputLabel value="Purchase order" />
-                        <select v-model="form.purchase_order_id" class="mt-1 w-full rounded-md border-gray-300 text-sm">
-                            <option value="">Select PO…</option>
-                            <option v-for="order in orders" :key="order.id" :value="order.id">
-                                {{ order.number }} — {{ order.supplier_name }}
-                            </option>
-                        </select>
-                        <InputError :message="form.errors.purchase_order_id" />
-                    </div>
-                    <div v-if="selectedOrder" class="space-y-2 rounded-lg border border-gray-100 p-3">
-                        <div v-for="(item, index) in form.items" :key="item.purchase_order_item_id" class="grid grid-cols-[1fr_120px] items-center gap-3 text-sm">
-                            <div>
-                                <div class="font-medium text-brand-navy">{{ item.label }}</div>
-                                <div class="text-xs text-gray-500">Returnable: {{ item.max }}</div>
-                            </div>
-                            <TextInput v-model="form.items[index].quantity" type="number" min="0" step="0.0001" :max="item.max" class="w-full" />
+                <div>
+                    <InputLabel value="Purchase order" />
+                    <select v-model="form.purchase_order_id" class="admin-filter-select mt-1 block w-full" required>
+                        <option value="">Select PO…</option>
+                        <option v-for="order in orders" :key="order.id" :value="order.id">
+                            {{ order.number }} — {{ order.supplier_name }}
+                        </option>
+                    </select>
+                    <InputError class="mt-1" :message="form.errors.purchase_order_id" />
+                </div>
+                <div v-if="selectedOrder" class="space-y-2 rounded-xl border border-gray-100 bg-gray-50/50 p-3">
+                    <div
+                        v-for="(item, index) in form.items"
+                        :key="item.purchase_order_item_id"
+                        class="grid grid-cols-[1fr_120px] items-center gap-3 text-sm"
+                    >
+                        <div>
+                            <div class="font-medium text-brand-navy">{{ item.label }}</div>
+                            <div class="text-xs text-gray-500">Returnable: {{ item.max }}</div>
                         </div>
-                        <InputError :message="form.errors.items" />
+                        <TextInput
+                            v-model="form.items[index].quantity"
+                            type="number"
+                            min="0"
+                            step="0.0001"
+                            :max="item.max"
+                            class="w-full"
+                        />
                     </div>
-                    <div>
-                        <InputLabel value="Reason" />
-                        <TextInput v-model="form.reason" class="mt-1 block w-full" />
-                    </div>
-                    <div class="flex justify-end gap-2">
-                        <SecondaryButton type="button" @click="showModal = false">Cancel</SecondaryButton>
-                        <PrimaryButton :disabled="form.processing">Save return</PrimaryButton>
-                    </div>
-                </form>
-            </div>
+                    <InputError :message="form.errors.items" />
+                </div>
+                <div>
+                    <InputLabel value="Reason" />
+                    <TextInput v-model="form.reason" class="mt-1 block w-full" />
+                </div>
+                <div class="flex justify-end gap-2">
+                    <SecondaryButton type="button" @click="showModal = false">Cancel</SecondaryButton>
+                    <PrimaryButton type="submit" :disabled="form.processing">Save return</PrimaryButton>
+                </div>
+            </form>
         </Modal>
     </AdminLayout>
 </template>

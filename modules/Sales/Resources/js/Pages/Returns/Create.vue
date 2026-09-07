@@ -1,11 +1,14 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
+import SearchableSelect from '@/Components/Admin/SearchableSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps({
     invoices: { type: Array, default: () => [] },
@@ -13,6 +16,27 @@ const props = defineProps({
     warehouses: { type: Array, default: () => [] },
     productOptions: { type: Array, default: () => [] },
 });
+
+const invoiceOptions = computed(() =>
+    props.invoices.map((inv) => ({
+        id: inv.id,
+        name: `${inv.number} — ${inv.customer_name}`,
+    })),
+);
+
+const orderOptions = computed(() =>
+    props.orders.map((order) => ({
+        id: order.id,
+        name: `${order.number} — ${order.customer_name}`,
+    })),
+);
+
+const productSelectOptions = computed(() =>
+    props.productOptions.map((p) => ({
+        id: p.id,
+        name: p.sku ? `${p.name} (${p.sku})` : p.name,
+    })),
+);
 
 const defaultWarehouse = props.warehouses.find((w) => w.is_default)?.id ?? props.warehouses[0]?.id ?? '';
 
@@ -53,7 +77,7 @@ const submit = (confirm) => {
 
     <AdminLayout title="New Sales Return">
         <div class="mb-4">
-            <Link :href="route('sales.returns.index')" class="text-sm text-brand-navy hover:text-brand-orange">
+            <Link :href="route('sales.returns.index')" class="text-sm font-medium text-brand-navy hover:text-brand-orange">
                 ← Returns
             </Link>
         </div>
@@ -62,30 +86,38 @@ const submit = (confirm) => {
             <section class="admin-card grid gap-4 sm:grid-cols-2">
                 <div>
                     <InputLabel value="Invoice (optional if order set)" />
-                    <select v-model="form.sales_invoice_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="">None</option>
-                        <option v-for="inv in invoices" :key="inv.id" :value="inv.id">
-                            {{ inv.number }} — {{ inv.customer_name }}
-                        </option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.sales_invoice_id"
+                            :options="invoiceOptions"
+                            placeholder="None"
+                            search-placeholder="Search invoice…"
+                        />
+                    </div>
                     <InputError :message="form.errors.sales_invoice_id" />
                 </div>
                 <div>
                     <InputLabel value="Sales order (optional if invoice set)" />
-                    <select v-model="form.sales_order_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="">None</option>
-                        <option v-for="order in orders" :key="order.id" :value="order.id">
-                            {{ order.number }} — {{ order.customer_name }}
-                        </option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.sales_order_id"
+                            :options="orderOptions"
+                            placeholder="None"
+                            search-placeholder="Search order…"
+                        />
+                    </div>
                     <InputError :message="form.errors.sales_order_id" />
                 </div>
                 <div>
                     <InputLabel value="Warehouse (restock)" />
-                    <select v-model="form.warehouse_id" class="mt-1 block w-full rounded-md border-gray-300 text-sm">
-                        <option value="">Default</option>
-                        <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</option>
-                    </select>
+                    <div class="mt-1">
+                        <SearchableSelect
+                            v-model="form.warehouse_id"
+                            :options="warehouses"
+                            placeholder="Default"
+                            search-placeholder="Search warehouse…"
+                        />
+                    </div>
                 </div>
                 <div>
                     <InputLabel value="Customer name" />
@@ -109,14 +141,13 @@ const submit = (confirm) => {
                     class="grid gap-3 rounded-lg border border-gray-100 p-4 sm:grid-cols-12"
                 >
                     <div class="sm:col-span-4">
-                        <select
+                        <SearchableSelect
                             v-model="line.product_id"
-                            class="block w-full rounded-md border-gray-300 text-sm"
-                            @change="onProductChange(index)"
-                        >
-                            <option value="">Product (optional)</option>
-                            <option v-for="p in productOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
-                        </select>
+                            :options="productSelectOptions"
+                            placeholder="Product (optional)"
+                            search-placeholder="Search product…"
+                            @update:model-value="onProductChange(index)"
+                        />
                     </div>
                     <div class="sm:col-span-3">
                         <TextInput v-model="line.name" placeholder="Name" class="block w-full" required />
@@ -127,15 +158,21 @@ const submit = (confirm) => {
                     <div class="sm:col-span-2">
                         <TextInput v-model="line.unit_price" type="number" min="0" step="0.01" class="block w-full" />
                     </div>
-                    <div class="sm:col-span-1">
-                        <SecondaryButton v-if="form.items.length > 1" type="button" @click="removeLine(index)">
-                            ×
-                        </SecondaryButton>
+                    <div class="flex items-center justify-end sm:col-span-1">
+                        <button
+                            v-if="form.items.length > 1"
+                            type="button"
+                            class="admin-data-table__action admin-data-table__action--danger"
+                            title="Remove line"
+                            @click="removeLine(index)"
+                        >
+                            <ActionIcon name="delete" />
+                        </button>
                     </div>
                 </div>
             </section>
 
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
                 <PrimaryButton type="button" :disabled="form.processing" @click="submit(true)">
                     Create & confirm (restock)
                 </PrimaryButton>

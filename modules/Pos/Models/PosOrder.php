@@ -20,8 +20,10 @@ class PosOrder extends Model
         'customer_id',
         'customer_name',
         'payment_method',
+        'payment_reference',
         'currency',
         'subtotal',
+        'discount_total',
         'grand_total',
         'amount_tendered',
         'change_due',
@@ -36,6 +38,7 @@ class PosOrder extends Model
         return [
             'status' => PosOrderStatus::class,
             'subtotal' => 'decimal:4',
+            'discount_total' => 'decimal:4',
             'grand_total' => 'decimal:4',
             'amount_tendered' => 'decimal:4',
             'change_due' => 'decimal:4',

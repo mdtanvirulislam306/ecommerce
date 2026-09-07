@@ -16,6 +16,10 @@ use Modules\Sales\Models\SalesOrderItem;
 
 class InvoiceService extends Service
 {
+    public function __construct(
+        private readonly SalesOrderService $orders,
+    ) {}
+
     public function listPaginated(
         ?string $search = null,
         ?InvoiceStatus $status = null,
@@ -159,7 +163,11 @@ class InvoiceService extends Service
             'status' => $status,
         ]);
 
-        return $invoice->fresh(['items', 'payments', 'creditNotes']);
+        $invoice = $invoice->fresh(['items', 'payments', 'creditNotes']);
+
+        $this->orders->syncPaymentStatusFromInvoice($invoice);
+
+        return $invoice;
     }
 
     /**

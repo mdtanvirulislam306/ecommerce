@@ -15,6 +15,8 @@ class PosOrderItem extends Model
         'name',
         'quantity',
         'unit_price',
+        'discount_percent',
+        'discount_amount',
         'line_total',
         'currency',
         'sort_order',
@@ -25,6 +27,8 @@ class PosOrderItem extends Model
         return [
             'quantity' => 'decimal:4',
             'unit_price' => 'decimal:4',
+            'discount_percent' => 'decimal:4',
+            'discount_amount' => 'decimal:4',
             'line_total' => 'decimal:4',
         ];
     }

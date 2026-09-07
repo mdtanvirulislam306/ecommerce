@@ -150,7 +150,7 @@ const placePanel = () => {
         top: `${Math.max(viewportPadding, top)}px`,
         left: `${left}px`,
         width: `${panelWidth}px`,
-        zIndex: 80,
+        zIndex: 10000,
     };
 };
 
@@ -216,15 +216,19 @@ const clear = () => {
 };
 
 const toggle = async () => {
-    open.value = !open.value;
     if (open.value) {
-        draftFrom.value = props.from || '';
-        draftTo.value = props.to || '';
-        pickingEnd.value = false;
-        viewDate.value = parseYmd(props.from) || new Date();
-        await nextTick();
-        placePanel();
+        open.value = false;
+        return;
     }
+
+    draftFrom.value = props.from || '';
+    draftTo.value = props.to || '';
+    pickingEnd.value = false;
+    viewDate.value = parseYmd(props.from) || new Date();
+    placePanel();
+    open.value = true;
+    await nextTick();
+    placePanel();
 };
 
 const onClickOutside = (event) => {

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Ecommerce\Http\Controllers\Storefront\ShopController;
 
 Route::get('/', [ShopController::class, 'index'])->name('index');
+Route::get('/products/{slug}', [ShopController::class, 'show'])->name('products.show');
 Route::get('/cart', [ShopController::class, 'cart'])->name('cart');
 Route::post('/cart', [ShopController::class, 'add'])->name('cart.add');
 Route::put('/cart', [ShopController::class, 'update'])->name('cart.update');

@@ -2,8 +2,8 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
 import { formatDateTime } from '@/utils/formatDateTime';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     product: {
@@ -11,6 +11,9 @@ const props = defineProps({
         required: true,
     },
 });
+
+const page = usePage();
+const flash = computed(() => page.props.flash);
 
 const deleteForm = useForm({});
 const actionForm = useForm({});
@@ -32,12 +35,17 @@ const runAction = (action) => {
 };
 
 const statusMeta = {
-    draft: 'bg-gray-100 text-gray-600',
-    pending_review: 'bg-amber-50 text-amber-700',
-    approved: 'bg-sky-50 text-sky-700',
-    active: 'bg-emerald-50 text-emerald-700',
-    archived: 'bg-orange-50 text-brand-orange',
+    draft: 'bg-gray-100 text-gray-600 ring-1 ring-gray-200',
+    pending_review: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
+    approved: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200',
+    active: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+    archived: 'bg-orange-50 text-brand-orange ring-1 ring-orange-200',
 };
+
+const productMedia = computed(() => (props.product.media || []).filter((m) => !m.product_variant_id));
+const variants = computed(() => props.product.variants || []);
+const specs = computed(() => props.product.informational_attributes || []);
+const collections = computed(() => props.product.collections || []);
 
 const confirmDelete = () => {
     deleteForm.delete(route('products.destroy', props.product.id));
@@ -50,15 +58,22 @@ const formatDate = formatDateTime;
     <Head :title="product.name" />
 
     <AdminLayout :title="product.name">
+        <div v-if="flash?.success" class="mb-4 rounded-lg bg-brand-teal/10 px-4 py-3 text-sm text-brand-navy">
+            {{ flash.success }}
+        </div>
+
         <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
                 <span
-                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize"
+                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
                     :class="statusMeta[product.status]"
                 >
-                    {{ product.status }}
+                    {{ product.status_label || product.status }}
                 </span>
-                <span class="text-xs text-gray-400">{{ product.type }} product</span>
+                <span class="text-xs text-gray-400 capitalize">{{ product.type_label || product.type }} product</span>
+                <span v-if="product.publication_status_label" class="text-xs text-gray-400">
+                    · {{ product.publication_status_label }}
+                </span>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <template v-if="product.approval_actions?.length">
@@ -89,14 +104,22 @@ const formatDate = formatDateTime;
             <div class="space-y-5">
                 <section class="admin-card">
                     <h2 class="text-sm font-semibold text-brand-navy">Overview</h2>
-                    <dl class="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
+                    <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                         <div>
                             <dt class="text-gray-500">SKU</dt>
                             <dd class="font-medium text-brand-navy">{{ product.sku || '—' }}</dd>
                         </div>
                         <div>
+                            <dt class="text-gray-500">Barcode</dt>
+                            <dd class="font-medium text-brand-navy">{{ product.barcode || '—' }}</dd>
+                        </div>
+                        <div>
                             <dt class="text-gray-500">Internal code</dt>
                             <dd class="font-medium text-brand-navy">{{ product.internal_code || '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-gray-500">Slug</dt>
+                            <dd class="font-mono text-xs font-medium text-brand-navy">{{ product.slug || '—' }}</dd>
                         </div>
                         <div>
                             <dt class="text-gray-500">Brand</dt>
@@ -107,32 +130,58 @@ const formatDate = formatDateTime;
                             <dd class="font-medium text-brand-navy">{{ product.primary_category?.name || '—' }}</dd>
                         </div>
                         <div>
+                            <dt class="text-gray-500">Family</dt>
+                            <dd class="font-medium text-brand-navy">{{ product.product_family?.name || '—' }}</dd>
+                        </div>
+                        <div>
                             <dt class="text-gray-500">Unit</dt>
                             <dd class="font-medium text-brand-navy">
                                 {{ product.unit ? `${product.unit.name} (${product.unit.code})` : '—' }}
                             </dd>
                         </div>
                         <div>
-                            <dt class="text-gray-500">Publication</dt>
-                            <dd class="font-medium text-brand-navy">{{ product.publication_status }}</dd>
+                            <dt class="text-gray-500">Selling price</dt>
+                            <dd class="font-medium text-brand-navy">
+                                {{ product.selling_price != null ? product.selling_price : '—' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-gray-500">Current stock</dt>
+                            <dd class="font-medium text-brand-navy">
+                                {{ product.current_stock != null ? product.current_stock : '—' }}
+                            </dd>
                         </div>
                     </dl>
+                    <p v-if="collections.length" class="mt-4 text-sm text-gray-600">
+                        <span class="text-gray-500">Collections:</span>
+                        {{ collections.map((c) => c.name).join(', ') }}
+                    </p>
                     <p v-if="product.description" class="mt-4 text-sm text-gray-600">{{ product.description }}</p>
                 </section>
 
-                <section v-if="product.variants.length" class="admin-card">
-                    <h2 class="text-sm font-semibold text-brand-navy">Variants ({{ product.variants.length }})</h2>
+                <section v-if="variants.length" class="admin-card">
+                    <h2 class="text-sm font-semibold text-brand-navy">Variants ({{ variants.length }})</h2>
                     <div class="mt-4 overflow-x-auto">
                         <table class="min-w-full text-sm">
                             <thead>
                                 <tr class="text-left text-xs text-gray-500">
+                                    <th class="pb-2 pr-4">Image</th>
                                     <th class="pb-2 pr-4">SKU</th>
                                     <th class="pb-2 pr-4">Name</th>
                                     <th class="pb-2">Attributes</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="variant in product.variants" :key="variant.id" class="border-t border-gray-100">
+                                <tr v-for="variant in variants" :key="variant.id" class="border-t border-gray-100">
+                                    <td class="py-2 pr-4">
+                                        <img
+                                            v-if="variant.image_url"
+                                            :src="variant.image_url"
+                                            alt=""
+                                            class="h-10 w-10 rounded-lg object-cover ring-1 ring-gray-200"
+                                        />
+                                        <span v-else class="text-xs text-gray-400">—</span>
+                                    </td>
                                     <td class="py-2 pr-4 font-medium text-brand-navy">{{ variant.sku }}</td>
                                     <td class="py-2 pr-4 text-gray-600">{{ variant.name || '—' }}</td>
                                     <td class="py-2 text-gray-600">
@@ -150,10 +199,10 @@ const formatDate = formatDateTime;
                     </div>
                 </section>
 
-                <section v-if="product.informational_attributes.length" class="admin-card">
+                <section v-if="specs.length" class="admin-card">
                     <h2 class="text-sm font-semibold text-brand-navy">Specifications</h2>
-                    <dl class="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
-                        <div v-for="attr in product.informational_attributes" :key="attr.attribute_id">
+                    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                        <div v-for="attr in specs" :key="attr.attribute_id">
                             <dt class="text-gray-500">{{ attr.attribute_name }}</dt>
                             <dd class="font-medium text-brand-navy">{{ attr.option_value || attr.value || '—' }}</dd>
                         </div>
@@ -164,9 +213,9 @@ const formatDate = formatDateTime;
             <aside class="space-y-5">
                 <section class="admin-card">
                     <h2 class="text-sm font-semibold text-brand-navy">Media</h2>
-                    <div v-if="product.media.length" class="mt-3 grid grid-cols-2 gap-2">
+                    <div v-if="productMedia.length" class="mt-3 grid grid-cols-2 gap-2">
                         <img
-                            v-for="media in product.media"
+                            v-for="media in productMedia"
                             :key="media.id"
                             :src="media.url"
                             alt=""
@@ -177,7 +226,7 @@ const formatDate = formatDateTime;
                     <p v-else class="mt-2 text-sm text-gray-500">No images</p>
                 </section>
 
-                <section class="admin-card text-sm text-gray-500 space-y-1">
+                <section class="admin-card space-y-1 text-sm text-gray-500">
                     <p>Created {{ formatDate(product.created_at) }}</p>
                     <p>Updated {{ formatDate(product.updated_at) }}</p>
                     <button

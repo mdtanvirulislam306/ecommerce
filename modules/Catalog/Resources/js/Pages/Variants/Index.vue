@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import { paginationMeta } from '@/utils/paginationMeta';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -40,12 +41,20 @@ watch(search, () => {
                     <h2 class="text-sm font-semibold text-brand-navy">All variants</h2>
                     <p class="text-xs text-gray-500">{{ meta.total }} SKUs across variant products</p>
                 </div>
-                <input
-                    v-model="search"
-                    type="search"
-                    placeholder="Search SKU or product…"
-                    class="admin-data-table__search"
-                />
+                <div class="flex flex-wrap items-center gap-3">
+                    <input
+                        v-model="search"
+                        type="search"
+                        placeholder="Search SKU or product…"
+                        class="admin-data-table__search"
+                    />
+                    <Link
+                        :href="route('products.create')"
+                        class="inline-flex items-center rounded-lg bg-brand-orange px-4 py-2 text-sm font-medium text-white hover:bg-brand-orange-dark"
+                    >
+                        Add product
+                    </Link>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -88,18 +97,37 @@ watch(search, () => {
                                     {{ variant.is_active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td class="admin-data-table__cell text-right">
-                                <Link
-                                    :href="route('products.edit', variant.product_id)"
-                                    class="admin-data-table__action"
-                                >
-                                    Edit product
-                                </Link>
+                            <td class="admin-data-table__cell">
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <Link
+                                        :href="route('products.show', variant.product_id)"
+                                        class="admin-data-table__action"
+                                        title="View product"
+                                    >
+                                        <ActionIcon name="view" />
+                                    </Link>
+                                    <Link
+                                        :href="route('products.edit', variant.product_id)"
+                                        class="admin-data-table__action"
+                                        title="Edit product"
+                                    >
+                                        <ActionIcon name="edit" />
+                                    </Link>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="variants.data.length === 0">
-                            <td colspan="5" class="px-5 py-12 text-center text-sm text-gray-500">
-                                No variants found. Create a variant product to add SKUs.
+                            <td colspan="5" class="px-5 py-12 text-center">
+                                <p class="text-sm text-gray-500">
+                                    {{ search ? 'No variants match your search.' : 'No variants yet. Create a variant product to generate SKUs.' }}
+                                </p>
+                                <Link
+                                    v-if="!search"
+                                    :href="route('products.create')"
+                                    class="mt-3 inline-block text-sm font-medium text-brand-orange hover:underline"
+                                >
+                                    Add variant product
+                                </Link>
                             </td>
                         </tr>
                     </tbody>
@@ -107,7 +135,7 @@ watch(search, () => {
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
                     <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
                 </select>
                 <TablePagination :paginator="variants" :links="variants.links" />

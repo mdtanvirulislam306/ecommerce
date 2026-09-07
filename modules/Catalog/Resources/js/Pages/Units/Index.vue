@@ -1,6 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
+import ActionIcon from '@/Components/Admin/ActionIcon.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import Modal from '@/Components/Modal.vue';
 import InputError from '@/Components/InputError.vue';
@@ -166,27 +167,47 @@ watch(search, () => {
                             </td>
                             <td class="admin-data-table__cell text-gray-600">{{ unit.sort_order }}</td>
                             <td class="admin-data-table__cell">
-                                <div class="flex justify-end gap-1">
-                                    <button type="button" class="admin-data-table__action" @click="openEdit(unit)">Edit</button>
+                                <div class="flex items-center justify-end gap-0.5">
+                                    <button
+                                        type="button"
+                                        class="admin-data-table__action"
+                                        title="Edit"
+                                        @click="openEdit(unit)"
+                                    >
+                                        <ActionIcon name="edit" />
+                                    </button>
                                     <button
                                         type="button"
                                         class="admin-data-table__action admin-data-table__action--danger"
+                                        title="Delete"
                                         @click="deleteTarget = unit"
                                     >
-                                        Delete
+                                        <ActionIcon name="delete" />
                                     </button>
                                 </div>
                             </td>
                         </tr>
                         <tr v-if="units.data.length === 0">
-                            <td colspan="5" class="px-5 py-12 text-center text-sm text-gray-500">No units found.</td>
+                            <td colspan="5" class="px-5 py-12 text-center">
+                                <p class="text-sm text-gray-500">
+                                    {{ search ? 'No units match your search.' : 'No units yet.' }}
+                                </p>
+                                <button
+                                    v-if="!search"
+                                    type="button"
+                                    class="mt-3 text-sm font-medium text-brand-orange hover:underline"
+                                    @click="openCreate"
+                                >
+                                    Add your first unit
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="admin-data-table__footer">
-                <select v-model.number="perPage" class="rounded-lg border border-gray-200 text-xs" @change="visitIndex">
+                <select v-model.number="perPage" class="admin-filter-select text-xs" @change="visitIndex">
                     <option v-for="n in perPageOptions" :key="n" :value="n">{{ n }} per page</option>
                 </select>
                 <TablePagination :paginator="units" :links="units.links" />
