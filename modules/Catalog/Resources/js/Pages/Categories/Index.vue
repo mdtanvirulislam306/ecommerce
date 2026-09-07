@@ -2,6 +2,7 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DeleteConfirmModal from '@/Components/Admin/DeleteConfirmModal.vue';
 import ActionIcon from '@/Components/Admin/ActionIcon.vue';
+import MediaPicker from '@/Components/Admin/MediaPicker.vue';
 import TablePagination from '@/Components/Admin/TablePagination.vue';
 import Modal from '@/Components/Modal.vue';
 import InputError from '@/Components/InputError.vue';
@@ -27,22 +28,24 @@ const flash = computed(() => page.props.flash);
 const search = ref(props.filters.search ?? '');
 const perPage = ref(props.filters.per_page ?? 25);
 const showFormModal = ref(false);
+const showMediaPicker = ref(false);
 const editingCategory = ref(null);
 const deleteTarget = ref(null);
+const imagePreview = ref(null);
 
 const emptyForm = () => ({
     parent_id: '',
     name: '',
     slug: '',
     description: '',
-    image: null,
+    media_library_id: null,
+    clear_image: false,
     is_active: true,
     sort_order: 0,
 });
 
 const form = useForm(emptyForm());
 const deleteForm = useForm({});
-const imagePreview = ref(null);
 
 const meta = computed(() => paginationMeta(props.categories));
 
@@ -52,23 +55,13 @@ const parentLabel = (parentId) => {
     return parent?.name ?? '—';
 };
 
-const categoryImageUrl = (category) => {
-    if (!category?.image_path) {
-        return null;
-    }
-    return `/storage/${String(category.image_path).replace(/\\/g, '/')}`;
-};
-
-const onImageChange = (event) => {
-    const file = event.target.files?.[0] ?? null;
-    form.image = file;
-    imagePreview.value = file ? URL.createObjectURL(file) : categoryImageUrl(editingCategory.value);
-};
+const categoryImageUrl = (category) => category?.image_url || null;
 
 const openCreate = () => {
     editingCategory.value = null;
     form.defaults(emptyForm());
     form.reset();
+    form.clear_image = false;
     imagePreview.value = null;
     showFormModal.value = true;
 };
@@ -80,7 +73,8 @@ const openEdit = (category) => {
         name: category.name,
         slug: category.slug,
         description: category.description || '',
-        image: null,
+        media_library_id: category.media_library_id || null,
+        clear_image: false,
         is_active: category.is_active,
         sort_order: category.sort_order,
     });
@@ -96,10 +90,27 @@ const closeFormModal = () => {
     }
 };
 
+const onMediaSelect = (items) => {
+    const selected = Array.isArray(items) ? items[0] : items;
+    if (!selected) {
+        return;
+    }
+
+    form.media_library_id = selected.id;
+    form.clear_image = false;
+    imagePreview.value = selected.url || null;
+    showMediaPicker.value = false;
+};
+
+const clearImage = () => {
+    form.media_library_id = null;
+    form.clear_image = true;
+    imagePreview.value = null;
+};
+
 const submit = () => {
     const options = {
         preserveScroll: true,
-        forceFormData: true,
         onSuccess: () => {
             showFormModal.value = false;
             editingCategory.value = null;
@@ -298,21 +309,32 @@ watch(search, () => {
                         />
                     </div>
                     <div>
-                        <InputLabel for="image" value="Image" />
-                        <input
-                            id="image"
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            class="mt-1 block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-orange/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-orange"
-                            @change="onImageChange"
-                        />
-                        <InputError class="mt-1" :message="form.errors.image" />
-                        <img
-                            v-if="imagePreview"
-                            :src="imagePreview"
-                            alt=""
-                            class="mt-2 h-20 w-20 rounded-xl object-cover ring-1 ring-gray-100"
-                        />
+                        <InputLabel value="Image" />
+                        <div class="mt-1 flex items-start gap-3">
+                            <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl bg-gray-50 ring-1 ring-gray-100">
+                                <img v-if="imagePreview" :src="imagePreview" alt="" class="h-full w-full object-cover" />
+                                <span v-else class="text-[10px] text-gray-400">No image</span>
+                            </div>
+                            <div class="space-y-2">
+                                <button
+                                    type="button"
+                                    class="rounded-lg bg-brand-teal/10 px-3 py-1.5 text-sm font-medium text-brand-teal-dark hover:bg-brand-teal/20"
+                                    @click="showMediaPicker = true"
+                                >
+                                    Choose from media library
+                                </button>
+                                <button
+                                    v-if="imagePreview"
+                                    type="button"
+                                    class="block text-xs font-medium text-red-600 hover:underline"
+                                    @click="clearImage"
+                                >
+                                    Remove image
+                                </button>
+                                <p class="text-[11px] text-gray-400">Upload new files from Media Library if needed.</p>
+                            </div>
+                        </div>
+                        <InputError class="mt-1" :message="form.errors.media_library_id" />
                     </div>
                     <div>
                         <InputLabel for="sort_order" value="Sort order" />
@@ -329,6 +351,16 @@ watch(search, () => {
                 </form>
             </div>
         </Modal>
+
+        <MediaPicker
+            :show="showMediaPicker"
+            :multiple="false"
+            accept="image/*"
+            title="Select category image"
+            :selected-ids="form.media_library_id ? [form.media_library_id] : []"
+            @close="showMediaPicker = false"
+            @select="onMediaSelect"
+        />
 
         <DeleteConfirmModal
             :show="Boolean(deleteTarget)"

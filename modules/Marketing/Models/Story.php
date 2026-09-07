@@ -13,6 +13,7 @@ class Story extends Model
         'title',
         'type',
         'media_path',
+        'media_library_id',
         'action_url',
         'action_label',
         'is_active',

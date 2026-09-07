@@ -149,7 +149,7 @@ class CrmCustomerLinkTest extends TestCase
             'customer_email' => 'web@example.com',
             'customer_phone' => '01711112222',
             'shipping_address' => 'Dhaka',
-        ])->assertRedirect();
+        ])->assertRedirect(route('shop.index'));
 
         $this->assertDatabaseHas('customers', [
             'name' => 'Web Buyer',
@@ -186,7 +186,7 @@ class CrmCustomerLinkTest extends TestCase
             'customer_name' => 'Existing Web',
             'customer_email' => 'reuse@example.com',
             'shipping_address' => 'Chittagong',
-        ])->assertRedirect();
+        ])->assertRedirect(route('shop.index'));
 
         $this->assertSame(1, Customer::query()->where('email', 'reuse@example.com')->count());
         $this->assertDatabaseHas('online_orders', [

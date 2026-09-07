@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Core\Module\ModuleManager;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Modules\Billing\Services\PlanService;
 use Modules\Catalog\Models\Category;
@@ -29,38 +29,46 @@ class CatalogCategoryTest extends TestCase
         ])->assertRedirectToRoute('login');
     }
 
-    public function test_creates_category_with_image(): void
+    public function test_creates_category_with_media_library_image(): void
     {
         Storage::fake('public');
+        Storage::disk('public')->put('media/men.jpg', 'fake-image');
 
-        $image = UploadedFile::fake()->image('men.jpg');
+        $mediaId = DB::table('media_library_items')->insertGetId([
+            'name' => 'men.jpg',
+            'disk' => 'public',
+            'path' => 'media/men.jpg',
+            'mime' => 'image/jpeg',
+            'size' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->actingAs(User::factory()->create())
             ->post(route('products.categories.store'), [
                 'name' => 'Men',
                 'is_active' => true,
-                'image' => $image,
+                'media_library_id' => $mediaId,
             ])
             ->assertRedirectToRoute('products.categories.index');
 
         $category = Category::query()->where('name', 'Men')->first();
 
         $this->assertNotNull($category);
+        $this->assertSame($mediaId, $category->media_library_id);
         $this->assertNotNull($category->image_path);
         Storage::disk('public')->assertExists($category->image_path);
     }
 
-    public function test_rejects_non_image_category_upload(): void
+    public function test_rejects_invalid_media_library_id(): void
     {
-        Storage::fake('public');
-
         $this->actingAs(User::factory()->create())
             ->post(route('products.categories.store'), [
                 'name' => 'Men',
                 'is_active' => true,
-                'image' => UploadedFile::fake()->create('notes.pdf', 20, 'application/pdf'),
+                'media_library_id' => 999999,
             ])
-            ->assertSessionHasErrors('image');
+            ->assertSessionHasErrors('media_library_id');
 
         $this->assertDatabaseMissing('categories', ['name' => 'Men']);
     }

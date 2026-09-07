@@ -101,14 +101,14 @@ class ShopController extends Controller
         $order = $orders->checkoutFromCart($request->validated());
 
         return redirect()
-            ->route('shop.thanks', $order)
-            ->with('success', 'Order placed. Pay on delivery.');
+            ->route('shop.index')
+            ->with('order_placed', $orders->formatDetail($order));
     }
 
-    public function thanks(OnlineOrder $onlineOrder, OnlineOrderService $orders): Response
+    public function thanks(OnlineOrder $onlineOrder, OnlineOrderService $orders): RedirectResponse
     {
-        return Inertia::render('Ecommerce/Shop/Thanks', [
-            'order' => $orders->formatDetail($onlineOrder),
-        ]);
+        return redirect()
+            ->route('shop.index')
+            ->with('order_placed', $orders->formatDetail($onlineOrder));
     }
 }

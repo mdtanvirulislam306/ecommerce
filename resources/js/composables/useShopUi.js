@@ -201,7 +201,7 @@ export function useShopUi() {
             const finish = () => {
                 flyer.remove();
                 toEl.classList.add('shop-cart-pop');
-                window.setTimeout(() => toEl.classList.remove('shop-cart-pop'), 350);
+                window.setTimeout(() => toEl.classList.remove('shop-cart-pop'), 520);
             };
 
             const pointOnCurve = (t) => {
@@ -211,8 +211,10 @@ export function useShopUi() {
                 return { x, y };
             };
 
+            const duration = 5000;
+
             if (typeof flyer.animate === 'function') {
-                const steps = 16;
+                const steps = 24;
                 const keyframes = [];
                 for (let i = 0; i <= steps; i += 1) {
                     const t = i / steps;
@@ -228,8 +230,8 @@ export function useShopUi() {
 
                 return flyer
                     .animate(keyframes, {
-                        duration: 820,
-                        easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+                        duration,
+                        easing: 'cubic-bezier(0.33, 0.1, 0.25, 1)',
                         fill: 'forwards',
                     })
                     .finished.then(finish)
@@ -237,7 +239,6 @@ export function useShopUi() {
             }
 
             // Fallback: step along the curve with rAF
-            const duration = 820;
             const started = performance.now();
             return new Promise((resolve) => {
                 const tick = (now) => {

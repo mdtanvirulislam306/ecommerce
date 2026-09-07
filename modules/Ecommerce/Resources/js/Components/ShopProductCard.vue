@@ -73,34 +73,49 @@ const addClick = async (event) => {
             </span>
         </div>
 
-        <div class="flex flex-1 flex-col gap-1 p-2 sm:p-2.5">
-            <p class="line-clamp-2 min-h-[2.25rem] text-xs font-medium text-brand-navy transition group-hover:text-brand-orange sm:text-sm">
+        <div class="flex flex-1 flex-col gap-1.5 p-2.5 sm:p-3">
+            <p class="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-brand-navy transition group-hover:text-brand-orange">
                 {{ product.name }}
             </p>
 
-            <p class="text-sm font-semibold text-brand-navy">
-                <template v-if="product.price !== null">
-                    {{ formatMoney(product.currency, product.price) }}
-                </template>
-                <template v-else>
-                    <span class="text-xs font-normal text-gray-500">{{ product.price_message }}</span>
-                </template>
-            </p>
-
-            <div class="mt-auto flex items-center justify-between gap-2 pt-1">
-                <p v-if="product.rating_count" class="flex items-center gap-1 text-xs text-gray-500">
+            <div class="flex items-end justify-between gap-2">
+                <p class="text-base font-semibold text-brand-navy">
+                    <template v-if="product.price !== null">
+                        {{ formatMoney(product.currency, product.price) }}
+                    </template>
+                    <template v-else>
+                        <span class="text-xs font-normal text-gray-500">{{ product.price_message }}</span>
+                    </template>
+                </p>
+                <p v-if="product.rating_count" class="shrink-0 text-xs text-gray-500">
                     <span class="font-medium text-brand-navy">{{ product.rating_avg }}</span>
                     <span>({{ product.rating_count }})</span>
                 </p>
-                <p v-else class="text-xs text-gray-400">New</p>
-                <button
-                    type="button"
-                    class="rounded-lg bg-brand-orange/10 px-2.5 py-1 text-[11px] font-semibold text-brand-orange transition hover:bg-brand-orange hover:text-white"
-                    @click="addClick"
-                >
-                    {{ product.has_variants ? 'Options' : 'Add' }}
-                </button>
+                <p v-else class="shrink-0 text-xs text-gray-400">New</p>
             </div>
+
+            <button
+                type="button"
+                class="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-orange px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-orange/25 transition hover:bg-brand-orange-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                :disabled="!product.has_variants && product.type !== 'variant' && (!product.price || !product.in_stock)"
+                @click="addClick"
+            >
+                <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path
+                        v-if="product.has_variants || product.type === 'variant'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M4 6h16M4 12h16M4 18h10"
+                    />
+                    <path
+                        v-else
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 4v16m8-8H4"
+                    />
+                </svg>
+                {{ product.has_variants || product.type === 'variant' ? 'Choose options' : (product.in_stock ? 'Add to cart' : 'Out of stock') }}
+            </button>
         </div>
     </article>
 </template>

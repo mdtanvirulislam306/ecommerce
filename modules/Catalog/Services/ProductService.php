@@ -5,7 +5,6 @@ namespace Modules\Catalog\Services;
 use App\Core\Contracts\StockAvailability;
 use App\Core\Support\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -146,12 +145,9 @@ class ProductService extends Service
         return $this->formatForDetail($product);
     }
 
-    /**
-     * @param  list<UploadedFile>  $mediaFiles
-     */
-    public function create(array $data, array $mediaFiles = []): Product
+    public function create(array $data): Product
     {
-        return DB::transaction(function () use ($data, $mediaFiles) {
+        return DB::transaction(function () use ($data) {
             if ($this->catalogSettings->shouldAutoSubmitForReview()
                 && (empty($data['status']) || $data['status'] === ProductStatus::Draft->value)
             ) {
@@ -170,10 +166,6 @@ class ProductService extends Service
                 $this->createVariants($product, $data['variants']);
             }
 
-            if ($mediaFiles !== []) {
-                $this->uploadMedia($product, $mediaFiles);
-            }
-
             $this->attachLibraryMedia($product, $data['media_library_ids'] ?? []);
 
             $this->applySimpleCommerceInventory($product, $data);
@@ -182,12 +174,9 @@ class ProductService extends Service
         });
     }
 
-    /**
-     * @param  list<UploadedFile>  $mediaFiles
-     */
-    public function update(Product $product, array $data, array $mediaFiles = []): Product
+    public function update(Product $product, array $data): Product
     {
-        return DB::transaction(function () use ($product, $data, $mediaFiles) {
+        return DB::transaction(function () use ($product, $data) {
             $product->update($this->productAttributes($data, $product));
 
             $this->syncRelations($product, $data);
@@ -200,10 +189,6 @@ class ProductService extends Service
 
             if (! empty($data['remove_media_ids'])) {
                 $this->removeMediaByIds($product, $data['remove_media_ids']);
-            }
-
-            if ($mediaFiles !== []) {
-                $this->uploadMedia($product, $mediaFiles);
             }
 
             $this->attachLibraryMedia($product, $data['media_library_ids'] ?? []);
@@ -489,34 +474,6 @@ class ProductService extends Service
                 'attribute_option_id' => $attribute['attribute_option_id'] ?? null,
                 'value' => $attribute['value'] ?? null,
             ]);
-        }
-    }
-
-    /**
-     * @param  list<UploadedFile>  $files
-     */
-    private function uploadMedia(Product $product, array $files): void
-    {
-        $sortOrder = (int) $product->media()->max('sort_order');
-        $hasPrimary = $product->media()->where('is_primary', true)->exists();
-
-        foreach ($files as $file) {
-            if (! $file instanceof UploadedFile) {
-                continue;
-            }
-
-            $path = $file->store('products', 'public');
-            $sortOrder++;
-
-            ProductMedia::query()->create([
-                'product_id' => $product->id,
-                'path' => $path,
-                'type' => MediaType::Image,
-                'is_primary' => ! $hasPrimary,
-                'sort_order' => $sortOrder,
-            ]);
-
-            $hasPrimary = true;
         }
     }
 

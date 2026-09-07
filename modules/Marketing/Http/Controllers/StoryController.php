@@ -36,11 +36,7 @@ class StoryController extends Controller
 
     public function store(StoreStoryRequest $request, StoryService $service): RedirectResponse
     {
-        $service->create(
-            $request->validated(),
-            $request->file('media'),
-            $request->user()->id,
-        );
+        $service->create($request->validated(), $request->user()->id);
 
         return redirect()
             ->route('marketing.stories.index')
@@ -63,11 +59,7 @@ class StoryController extends Controller
 
     public function update(UpdateStoryRequest $request, Story $story, StoryService $service): RedirectResponse
     {
-        $service->update(
-            $story,
-            $request->validated(),
-            $request->file('media'),
-        );
+        $service->update($story, $request->validated());
 
         return redirect()
             ->route('marketing.stories.index')

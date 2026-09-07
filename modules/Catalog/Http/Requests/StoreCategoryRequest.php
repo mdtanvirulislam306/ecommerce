@@ -3,6 +3,7 @@
 namespace Modules\Catalog\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCategoryRequest extends FormRequest
 {
@@ -15,6 +16,7 @@ class StoreCategoryRequest extends FormRequest
     {
         $this->merge([
             'parent_id' => $this->input('parent_id') ?: null,
+            'media_library_id' => $this->input('media_library_id') ?: null,
             'is_active' => $this->boolean('is_active'),
             'sort_order' => $this->input('sort_order') ?? 0,
         ]);
@@ -30,7 +32,11 @@ class StoreCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:categories,slug'],
             'description' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'media_library_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('media_library_items', 'id'),
+            ],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],
         ];

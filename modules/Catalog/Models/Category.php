@@ -14,6 +14,7 @@ class Category extends Model
         'name',
         'slug',
         'description',
+        'media_library_id',
         'image_path',
         'is_active',
         'sort_order',

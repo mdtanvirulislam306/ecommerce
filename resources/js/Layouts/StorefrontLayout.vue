@@ -1,11 +1,12 @@
 <script setup>
 import ShopCartDrawer from '../../../modules/Ecommerce/Resources/js/Components/ShopCartDrawer.vue';
 import ShopCheckoutModal from '../../../modules/Ecommerce/Resources/js/Components/ShopCheckoutModal.vue';
+import ShopOrderSuccessModal from '../../../modules/Ecommerce/Resources/js/Components/ShopOrderSuccessModal.vue';
 import ShopProductModal from '../../../modules/Ecommerce/Resources/js/Components/ShopProductModal.vue';
 import ShopRequestProgress from '../../../modules/Ecommerce/Resources/js/Components/ShopRequestProgress.vue';
 import { useShopUi } from '@/Composables/useShopUi';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps({
     search: { type: String, default: '' },
@@ -14,24 +15,87 @@ const props = defineProps({
 
 const page = usePage();
 const cartCount = computed(() => page.props.cartCount ?? page.props.shopCart?.count ?? 0);
+const cartSubtotal = computed(() => Number(page.props.shopCart?.subtotal || 0));
+const cartItemsLabel = computed(() => {
+    const count = Number(cartCount.value) || 0;
+    return `${count} ${count === 1 ? 'item' : 'items'}`;
+});
+const cartTotalLabel = computed(() =>
+    Math.round(cartSubtotal.value).toLocaleString('en-BD'),
+);
 const flash = computed(() => page.props.flash);
 const query = ref(props.search ?? '');
+const searching = ref(false);
 const { openCart, setCartButtonEl } = useShopUi();
+
+/** @type {ReturnType<typeof setTimeout>|null} */
+let searchTimer = null;
+let ignoreQueryWatch = false;
 
 watch(
     () => props.search,
     (value) => {
-        query.value = value ?? '';
+        const next = value ?? '';
+        if (next === query.value) {
+            return;
+        }
+        ignoreQueryWatch = true;
+        query.value = next;
+        ignoreQueryWatch = false;
     },
 );
 
-const submitSearch = () => {
+const runLiveSearch = (raw) => {
+    const next = (raw || '').trim();
+    const current = (props.search || '').trim();
+    const onShopIndex = route().current('shop.index');
+
+    if (next === current && onShopIndex) {
+        searching.value = false;
+        return;
+    }
+
+    searching.value = true;
+
     router.get(
         route('shop.index'),
-        { search: query.value || undefined },
-        { preserveState: true, replace: true },
+        next ? { search: next } : {},
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onFinish: () => {
+                searching.value = false;
+            },
+        },
     );
 };
+
+watch(query, (value) => {
+    if (ignoreQueryWatch) {
+        return;
+    }
+    clearTimeout(searchTimer);
+    searching.value = true;
+    searchTimer = setTimeout(() => runLiveSearch(value), 320);
+});
+
+const submitSearch = () => {
+    clearTimeout(searchTimer);
+    runLiveSearch(query.value);
+};
+
+const clearSearch = () => {
+    clearTimeout(searchTimer);
+    ignoreQueryWatch = true;
+    query.value = '';
+    ignoreQueryWatch = false;
+    runLiveSearch('');
+};
+
+onBeforeUnmount(() => {
+    clearTimeout(searchTimer);
+});
 </script>
 
 <template>
@@ -55,16 +119,37 @@ const submitSearch = () => {
                 <form class="mx-auto hidden min-w-0 flex-1 max-w-3xl md:block" @submit.prevent="submitSearch">
                     <label class="relative block">
                         <span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-gray-400">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg
+                                v-if="searching"
+                                class="h-4 w-4 animate-spin text-brand-teal"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                            </svg>
+                            <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.2-5.2m1.7-4.3a6 6 0 11-12 0 6 6 0 0112 0z" />
                             </svg>
                         </span>
                         <input
                             v-model="query"
                             type="search"
-                            placeholder="Search products, brands…"
-                            class="w-full rounded-full border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-brand-navy placeholder:text-gray-400 transition focus:border-brand-teal focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
+                            placeholder="Search products…"
+                            autocomplete="off"
+                            class="w-full rounded-full border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-10 text-sm text-brand-navy placeholder:text-gray-400 transition focus:border-brand-teal focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
                         />
+                        <button
+                            v-if="query"
+                            type="button"
+                            class="absolute inset-y-0 right-2 my-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-brand-navy"
+                            aria-label="Clear search"
+                            @click="clearSearch"
+                        >
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </label>
                 </form>
 
@@ -102,7 +187,16 @@ const submitSearch = () => {
             <form class="border-t border-gray-50 px-4 py-2.5 md:hidden" @submit.prevent="submitSearch">
                 <label class="relative block">
                     <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg
+                            v-if="searching"
+                            class="h-4 w-4 animate-spin text-brand-teal"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
+                        </svg>
+                        <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.2-5.2m1.7-4.3a6 6 0 11-12 0 6 6 0 0112 0z" />
                         </svg>
                     </span>
@@ -110,14 +204,26 @@ const submitSearch = () => {
                         v-model="query"
                         type="search"
                         placeholder="Search products…"
-                        class="w-full rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-brand-teal focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
+                        autocomplete="off"
+                        class="w-full rounded-full border border-gray-200 bg-gray-50 py-2 pl-9 pr-9 text-sm focus:border-brand-teal focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
                     />
+                    <button
+                        v-if="query"
+                        type="button"
+                        class="absolute inset-y-0 right-1.5 my-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-brand-navy"
+                        aria-label="Clear search"
+                        @click="clearSearch"
+                    >
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </label>
             </form>
         </header>
 
         <main>
-            <div v-if="flash?.success" class="w-full px-4 pt-4 sm:px-6 lg:px-8">
+            <div v-if="flash?.success && !flash?.order_placed" class="w-full px-4 pt-4 sm:px-6 lg:px-8">
                 <div class="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-100">
                     {{ flash.success }}
                 </div>
@@ -125,30 +231,38 @@ const submitSearch = () => {
             <slot />
         </main>
 
-        <!-- Floating right cart button -->
-        <button
-            id="shop-cart-target"
-            data-shop-cart-target
-            :ref="setCartButtonEl"
-            type="button"
-            class="fixed bottom-6 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand-orange text-white shadow-lg shadow-brand-orange/40 transition hover:scale-105 hover:bg-brand-orange-dark sm:right-6"
-            aria-label="Open cart"
-            @click="openCart"
+        <!-- Floating right-middle cart card -->
+        <div
+            v-show="cartCount > 0"
+            class="fixed right-0 top-1/2 z-50 -translate-y-1/2"
         >
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 6h14M10 19a1 1 0 100 2 1 1 0 000-2zm8 0a1 1 0 100 2 1 1 0 000-2z" />
-            </svg>
-            <span
-                v-if="cartCount"
-                class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-brand-navy px-1.5 py-0.5 text-[10px] font-semibold text-white"
+            <button
+                id="shop-cart-target"
+                data-shop-cart-target
+                :ref="setCartButtonEl"
+                type="button"
+                class="flex w-[4.75rem] flex-col overflow-hidden rounded-l-2xl shadow-xl shadow-brand-navy/25 transition hover:brightness-105 active:scale-[0.98]"
+                aria-label="Open cart"
+                @click="openCart"
             >
-                {{ cartCount }}
-            </span>
-        </button>
+                <span class="flex flex-col items-center gap-1 bg-brand-orange px-2 py-3 text-white">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/25">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 10-8 0v4M5 9h14l-1.2 11.1a2 2 0 01-2 1.9H8.2a2 2 0 01-2-1.9L5 9z" />
+                        </svg>
+                    </span>
+                    <span class="text-[11px] font-bold italic leading-tight">{{ cartItemsLabel }}</span>
+                </span>
+                <span class="bg-brand-navy px-2 py-2.5 text-center text-[12px] font-bold leading-none text-white">
+                    ৳{{ cartTotalLabel }}
+                </span>
+            </button>
+        </div>
 
         <ShopRequestProgress />
         <ShopCartDrawer />
         <ShopCheckoutModal />
+        <ShopOrderSuccessModal />
         <ShopProductModal />
     </div>
 </template>

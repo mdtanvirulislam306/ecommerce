@@ -4,9 +4,9 @@ namespace Modules\Catalog\Services;
 
 use App\Core\Support\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Modules\Catalog\Models\Category;
 use Modules\Catalog\Support\GeneratesUniqueSlug;
@@ -26,7 +26,8 @@ class CategoryService extends Service
             ->orderBy('sort_order')
             ->orderBy('name')
             ->paginate($perPage)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Category $category) => $this->formatForAdmin($category));
     }
 
     /**
@@ -43,29 +44,64 @@ class CategoryService extends Service
         return $this->buildTree($categories);
     }
 
-    public function create(array $data, ?UploadedFile $image = null): Category
+    /**
+     * @param  array{
+     *     parent_id?: int|null,
+     *     name: string,
+     *     slug?: string|null,
+     *     description?: string|null,
+     *     media_library_id?: int|null,
+     *     is_active?: bool,
+     *     sort_order?: int
+     * }  $data
+     */
+    public function create(array $data): Category
     {
-        return DB::transaction(function () use ($data, $image) {
+        return DB::transaction(function () use ($data) {
+            $mediaLibraryId = $this->nullableId($data['media_library_id'] ?? null);
+            $imagePath = $this->copyFromMediaLibrary($mediaLibraryId, 'categories');
+
             return Category::query()->create([
                 'parent_id' => $data['parent_id'] ?? null,
                 'name' => $data['name'],
                 'slug' => $data['slug'] ?? $this->uniqueSlug($data['name'], Category::class),
                 'description' => $data['description'] ?? null,
-                'image_path' => $image?->store('categories', 'public'),
+                'media_library_id' => $mediaLibraryId,
+                'image_path' => $imagePath,
                 'is_active' => $data['is_active'] ?? true,
                 'sort_order' => $data['sort_order'] ?? 0,
             ]);
         });
     }
 
-    public function update(Category $category, array $data, ?UploadedFile $image = null): Category
+    /**
+     * @param  array{
+     *     parent_id?: int|null,
+     *     name: string,
+     *     slug?: string|null,
+     *     description?: string|null,
+     *     media_library_id?: int|null,
+     *     clear_image?: bool,
+     *     is_active?: bool,
+     *     sort_order?: int
+     * }  $data
+     */
+    public function update(Category $category, array $data): Category
     {
-        return DB::transaction(function () use ($category, $data, $image) {
+        return DB::transaction(function () use ($category, $data) {
+            $clearImage = (bool) ($data['clear_image'] ?? false);
+            $mediaLibraryId = array_key_exists('media_library_id', $data)
+                ? $this->nullableId($data['media_library_id'])
+                : $category->media_library_id;
             $imagePath = $category->image_path;
 
-            if ($image !== null) {
+            if ($clearImage) {
                 $this->deleteStoredImage($category->image_path);
-                $imagePath = $image->store('categories', 'public');
+                $mediaLibraryId = null;
+                $imagePath = null;
+            } elseif (array_key_exists('media_library_id', $data) && $mediaLibraryId !== $category->media_library_id) {
+                $this->deleteStoredImage($category->image_path);
+                $imagePath = $this->copyFromMediaLibrary($mediaLibraryId, 'categories');
             }
 
             $category->update([
@@ -73,6 +109,7 @@ class CategoryService extends Service
                 'name' => $data['name'],
                 'slug' => $data['slug'] ?? $this->uniqueSlug($data['name'], Category::class, $category->id),
                 'description' => $data['description'] ?? $category->description,
+                'media_library_id' => $mediaLibraryId,
                 'image_path' => $imagePath,
                 'is_active' => $data['is_active'] ?? $category->is_active,
                 'sort_order' => $data['sort_order'] ?? $category->sort_order,
@@ -88,6 +125,29 @@ class CategoryService extends Service
             $this->deleteStoredImage($category->image_path);
             $category->delete();
         });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatForAdmin(Category $category): array
+    {
+        return [
+            'id' => $category->id,
+            'parent_id' => $category->parent_id,
+            'parent' => $category->parent ? [
+                'id' => $category->parent->id,
+                'name' => $category->parent->name,
+            ] : null,
+            'name' => $category->name,
+            'slug' => $category->slug,
+            'description' => $category->description,
+            'media_library_id' => $category->media_library_id,
+            'image_path' => $category->image_path,
+            'image_url' => $category->image_path ? '/storage/'.$category->image_path : null,
+            'is_active' => $category->is_active,
+            'sort_order' => $category->sort_order,
+        ];
     }
 
     /**
@@ -108,6 +168,40 @@ class CategoryService extends Service
                 'children' => $this->buildTree($categories, $category->id),
             ])
             ->all();
+    }
+
+    private function copyFromMediaLibrary(?int $mediaLibraryId, string $directory): ?string
+    {
+        if ($mediaLibraryId === null || ! Schema::hasTable('media_library_items')) {
+            return null;
+        }
+
+        $item = DB::table('media_library_items')->where('id', $mediaLibraryId)->first();
+        if ($item === null || blank($item->path)) {
+            return null;
+        }
+
+        $disk = $item->disk ?: 'public';
+        if (! Storage::disk($disk)->exists($item->path)) {
+            return null;
+        }
+
+        $extension = pathinfo((string) $item->path, PATHINFO_EXTENSION) ?: 'jpg';
+        $dest = trim($directory, '/').'/'.uniqid('lib_', true).'.'.$extension;
+        Storage::disk('public')->put($dest, Storage::disk($disk)->get($item->path));
+
+        return $dest;
+    }
+
+    private function nullableId(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || $value === false) {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        return $id > 0 ? $id : null;
     }
 
     private function deleteStoredImage(?string $path): void

@@ -62,10 +62,7 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request, ProductService $service): RedirectResponse
     {
-        $product = $service->create(
-            $request->validated(),
-            $request->file('media', []),
-        );
+        $product = $service->create($request->validated());
 
         return redirect()
             ->route('products.show', $product)
@@ -89,11 +86,7 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, Product $product, ProductService $service): RedirectResponse
     {
-        $service->update(
-            $product,
-            $request->validated(),
-            $request->file('media', []),
-        );
+        $service->update($product, $request->validated());
 
         return redirect()
             ->route('products.show', $product)

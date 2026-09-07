@@ -73,16 +73,22 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                             v-for="item in categories"
                             :key="item.id"
                             :href="categoryHref(item.slug)"
-                            class="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm transition"
+                            class="flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-sm transition"
                             :class="isActiveCategory(item.slug) ? 'bg-brand-orange/10 font-medium text-brand-orange' : 'text-brand-navy hover:bg-gray-50'"
                         >
-                            <span class="flex min-w-0 items-center gap-2">
+                            <span class="flex min-w-0 items-center gap-2.5">
                                 <img
                                     v-if="item.image_url"
                                     :src="item.image_url"
                                     alt=""
-                                    class="h-6 w-6 shrink-0 rounded-md object-cover"
+                                    class="h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-gray-100"
                                 />
+                                <span
+                                    v-else
+                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-500"
+                                >
+                                    {{ item.name.charAt(0) }}
+                                </span>
                                 <span class="truncate">{{ item.name }}</span>
                             </span>
                             <span class="shrink-0 text-[11px] text-gray-400">{{ item.product_count }}</span>
@@ -95,10 +101,10 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
             </aside>
 
             <div class="min-w-0 flex-1 space-y-8 px-4 py-5 sm:px-6 lg:px-8 lg:py-3">
-                <div class="flex gap-2 overflow-x-auto pb-1 lg:hidden">
+                <div class="flex gap-2.5 overflow-x-auto pb-1 lg:hidden">
                     <Link
                         :href="route('shop.index')"
-                        class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium ring-1"
+                        class="shrink-0 rounded-full px-4 py-2 text-sm font-medium ring-1"
                         :class="!search && !category ? 'bg-brand-orange text-white ring-brand-orange' : 'bg-white text-brand-navy ring-gray-200'"
                     >
                         All
@@ -107,9 +113,21 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                         v-for="item in categories"
                         :key="`m-${item.id}`"
                         :href="categoryHref(item.slug)"
-                        class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium ring-1"
-                        :class="isActiveCategory(item.slug) ? 'bg-brand-orange text-white ring-brand-orange' : 'bg-white text-brand-navy ring-gray-200'"
+                        class="flex shrink-0 items-center gap-2 rounded-full bg-white py-1.5 pl-1.5 pr-3.5 text-sm font-medium ring-1"
+                        :class="isActiveCategory(item.slug) ? 'text-brand-orange ring-brand-orange' : 'text-brand-navy ring-gray-200'"
                     >
+                        <img
+                            v-if="item.image_url"
+                            :src="item.image_url"
+                            alt=""
+                            class="h-8 w-8 rounded-full object-cover"
+                        />
+                        <span
+                            v-else
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500"
+                        >
+                            {{ item.name.charAt(0) }}
+                        </span>
                         {{ item.name }}
                     </Link>
                 </div>
@@ -135,29 +153,32 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                 </section>
 
                 <section v-else-if="isCategoryView" class="space-y-4">
-                    <div v-if="child_categories.length" class="flex gap-2 overflow-x-auto pb-0.5">
+                    <div v-if="child_categories.length" class="flex gap-3 overflow-x-auto pb-1">
                         <Link
                             v-for="child in child_categories"
                             :key="child.id"
                             :href="categoryHref(child.slug)"
-                            class="group flex shrink-0 items-center gap-2 rounded-full border border-gray-100 bg-white py-1 pl-1 pr-3 shadow-card transition hover:-translate-y-px hover:border-brand-orange/40 hover:shadow-md"
+                            class="group flex w-[7.5rem] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-brand-orange/40 hover:shadow-md sm:w-36"
                         >
-                            <span class="relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-brand-orange to-brand-teal ring-2 ring-brand-orange/15 ring-offset-1 ring-offset-white">
+                            <span class="flex aspect-[4/5] items-center justify-center bg-gray-50 p-3 sm:p-4">
                                 <img
                                     v-if="child.image_url"
                                     :src="child.image_url"
                                     :alt="child.name"
-                                    class="h-full w-full object-cover"
+                                    class="max-h-full max-w-full object-contain transition duration-300 group-hover:scale-[1.03]"
                                 />
-                                <span v-else class="flex h-full w-full items-center justify-center text-[11px] font-semibold text-white">
+                                <span
+                                    v-else
+                                    class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand-orange to-brand-teal text-lg font-semibold text-white sm:h-20 sm:w-20 sm:text-xl"
+                                >
                                     {{ child.name.charAt(0) }}
                                 </span>
                             </span>
-                            <span class="min-w-0 pr-0.5">
-                                <span class="block max-w-[7.5rem] truncate text-xs font-semibold text-brand-navy group-hover:text-brand-orange">
+                            <span class="border-t border-gray-100 px-2.5 py-2.5 text-center sm:py-3">
+                                <span class="block truncate text-sm font-medium text-brand-navy group-hover:text-brand-orange">
                                     {{ child.name }}
                                 </span>
-                                <span class="block text-[10px] leading-none text-gray-400">
+                                <span class="mt-0.5 block text-[11px] text-gray-400">
                                     {{ child.product_count }} {{ child.product_count === 1 ? 'item' : 'items' }}
                                 </span>
                             </span>
@@ -246,7 +267,7 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                             />
                         </div>
                         <p v-if="!trending.length" class="py-10 text-center text-sm text-gray-500">
-                            Mark products as Featured in Ecommerce → Online Products.
+                            No published products yet. Publish from Admin → Ecommerce → Online Products.
                         </p>
                     </section>
 
@@ -288,27 +309,27 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                         </div>
                         <div :class="productGridClass">
                             <ShopProductCard
-                                v-for="product in (homepage.length ? homepage : best_selling)"
+                                v-for="product in best_selling"
                                 :key="`best-${product.id}`"
                                 :product="product"
                             />
                         </div>
                         <p
-                            v-if="!(homepage.length || best_selling.length)"
+                            v-if="!best_selling.length"
                             class="rounded-2xl border border-dashed border-gray-200 py-16 text-center text-sm text-gray-500"
                         >
                             No published products yet. Publish from Admin → Ecommerce → Online Products.
                         </p>
                     </section>
 
-                    <section v-if="homepage.length && best_selling.length">
+                    <section v-if="homepage.length">
                         <div class="mb-3 flex items-center justify-between">
-                            <h2 class="text-lg font-semibold tracking-tight text-brand-navy">More to explore</h2>
+                            <h2 class="text-lg font-semibold tracking-tight text-brand-navy">Picked for you</h2>
                         </div>
                         <div :class="productGridClass">
                             <ShopProductCard
-                                v-for="product in best_selling"
-                                :key="`more-${product.id}`"
+                                v-for="product in homepage"
+                                :key="`home-${product.id}`"
                                 :product="product"
                             />
                         </div>

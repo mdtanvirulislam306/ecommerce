@@ -36,7 +36,7 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request, CategoryService $service): RedirectResponse
     {
-        $service->create($request->safe()->except('image'), $request->file('image'));
+        $service->create($request->validated());
 
         return redirect()
             ->route('products.categories.index')
@@ -45,7 +45,7 @@ class CategoryController extends Controller
 
     public function quickStore(StoreCategoryRequest $request, CategoryService $service): JsonResponse
     {
-        $category = $service->create($request->safe()->except('image'), $request->file('image'));
+        $category = $service->create($request->validated());
 
         return response()->json([
             'item' => [
@@ -58,7 +58,7 @@ class CategoryController extends Controller
 
     public function update(UpdateCategoryRequest $request, Category $category, CategoryService $service): RedirectResponse
     {
-        $service->update($category, $request->safe()->except('image'), $request->file('image'));
+        $service->update($category, $request->validated());
 
         return redirect()
             ->route('products.categories.index')
