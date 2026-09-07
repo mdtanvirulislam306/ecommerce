@@ -3,7 +3,9 @@
 namespace Modules\Ecommerce\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Ecommerce\Http\Requests\AddToCartRequest;
@@ -17,20 +19,26 @@ use Modules\Ecommerce\Services\StorefrontCatalogService;
 
 class ShopController extends Controller
 {
-    public function index(StorefrontCatalogService $catalog, CartService $cart): Response
+    public function index(Request $request, StorefrontCatalogService $catalog): Response
     {
-        return Inertia::render('Ecommerce/Shop/Index', [
-            'products' => $catalog->publishedProducts(),
-            'cartCount' => $cart->count(),
-        ]);
+        $homepage = $catalog->homepage(
+            $request->string('search')->trim()->toString() ?: null,
+            $request->string('category')->trim()->toString() ?: null,
+        );
+
+        return Inertia::render('Ecommerce/Shop/Index', $homepage);
     }
 
-    public function show(string $slug, StorefrontCatalogService $catalog, CartService $cart): Response
+    public function show(string $slug, StorefrontCatalogService $catalog): Response
     {
         return Inertia::render('Ecommerce/Shop/Show', [
             'product' => $catalog->productBySlug($slug),
-            'cartCount' => $cart->count(),
         ]);
+    }
+
+    public function quick(string $slug, StorefrontCatalogService $catalog): JsonResponse
+    {
+        return response()->json($catalog->productBySlug($slug));
     }
 
     public function cart(CartService $cart): Response

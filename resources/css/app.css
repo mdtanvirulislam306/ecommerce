@@ -125,3 +125,36 @@
         @apply block px-3 py-2 text-sm text-brand-navy hover:bg-gray-50;
     }
 }
+
+/* Storefront fly-to-cart pop on cart icon (flyer motion uses Web Animations API) */
+.shop-cart-pop {
+    animation: shop-cart-pop 0.35s ease;
+}
+
+@keyframes shop-cart-pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+}
+
+.shop-request-bar {
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    z-index: 300;
+    height: 3px;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.shop-request-bar__fill {
+    height: 100%;
+    width: 30%;
+    background: #F27D42;
+    animation: shop-request-slide 0.9s ease-in-out infinite;
+}
+
+@keyframes shop-request-slide {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(400%); }
+}

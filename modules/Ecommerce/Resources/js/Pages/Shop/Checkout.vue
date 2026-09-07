@@ -27,6 +27,7 @@ const submit = () => {
     <Head title="Checkout" />
 
     <StorefrontLayout>
+        <div class="w-full px-4 py-8 sm:px-6 lg:px-8">
         <div class="mb-6">
             <Link :href="route('shop.cart')" class="text-sm hover:text-brand-orange">← Cart</Link>
             <h1 class="mt-2 text-3xl font-semibold tracking-tight">Checkout</h1>
@@ -87,6 +88,7 @@ const submit = () => {
                     Total {{ cart.currency }} {{ Number(cart.subtotal).toFixed(2) }}
                 </p>
             </aside>
+        </div>
         </div>
     </StorefrontLayout>
 </template>

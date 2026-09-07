@@ -11,6 +11,7 @@ defineProps({
     <Head :title="`Order ${order.number}`" />
 
     <StorefrontLayout>
+        <div class="w-full px-4 py-12 sm:px-6 lg:px-8">
         <div class="mx-auto max-w-lg border border-black/5 bg-white p-8 text-center">
             <p class="text-sm uppercase tracking-wide text-brand-orange">Thank you</p>
             <h1 class="mt-2 text-3xl font-semibold tracking-tight">Order placed</h1>
@@ -22,6 +23,7 @@ defineProps({
             <Link :href="route('shop.index')" class="mt-8 inline-block text-sm font-medium underline-offset-4 hover:underline">
                 Back to shop
             </Link>
+        </div>
         </div>
     </StorefrontLayout>
 </template>

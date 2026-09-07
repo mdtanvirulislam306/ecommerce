@@ -35,12 +35,14 @@ const emptyForm = () => ({
     name: '',
     slug: '',
     description: '',
+    image: null,
     is_active: true,
     sort_order: 0,
 });
 
 const form = useForm(emptyForm());
 const deleteForm = useForm({});
+const imagePreview = ref(null);
 
 const meta = computed(() => paginationMeta(props.categories));
 
@@ -50,10 +52,24 @@ const parentLabel = (parentId) => {
     return parent?.name ?? '—';
 };
 
+const categoryImageUrl = (category) => {
+    if (!category?.image_path) {
+        return null;
+    }
+    return `/storage/${String(category.image_path).replace(/\\/g, '/')}`;
+};
+
+const onImageChange = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    form.image = file;
+    imagePreview.value = file ? URL.createObjectURL(file) : categoryImageUrl(editingCategory.value);
+};
+
 const openCreate = () => {
     editingCategory.value = null;
     form.defaults(emptyForm());
     form.reset();
+    imagePreview.value = null;
     showFormModal.value = true;
 };
 
@@ -64,10 +80,12 @@ const openEdit = (category) => {
         name: category.name,
         slug: category.slug,
         description: category.description || '',
+        image: null,
         is_active: category.is_active,
         sort_order: category.sort_order,
     });
     form.reset();
+    imagePreview.value = categoryImageUrl(category);
     showFormModal.value = true;
 };
 
@@ -79,22 +97,22 @@ const closeFormModal = () => {
 };
 
 const submit = () => {
+    const options = {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            showFormModal.value = false;
+            editingCategory.value = null;
+            imagePreview.value = null;
+        },
+    };
+
     if (editingCategory.value) {
-        form.put(route('products.categories.update', editingCategory.value.id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                showFormModal.value = false;
-                editingCategory.value = null;
-            },
-        });
-    } else {
-        form.post(route('products.categories.store'), {
-            preserveScroll: true,
-            onSuccess: () => {
-                showFormModal.value = false;
-            },
-        });
+        form.put(route('products.categories.update', editingCategory.value.id), options);
+        return;
     }
+
+    form.post(route('products.categories.store'), options);
 };
 
 const confirmDelete = () => {
@@ -157,6 +175,7 @@ watch(search, () => {
                 <table class="min-w-full">
                     <thead class="border-b border-gray-200 bg-gray-50/90">
                         <tr class="admin-data-table__head">
+                            <th>Image</th>
                             <th>Name</th>
                             <th>Parent</th>
                             <th>Slug</th>
@@ -166,6 +185,15 @@ watch(search, () => {
                     </thead>
                     <tbody>
                         <tr v-for="category in categories.data" :key="category.id" class="admin-data-table__row">
+                            <td class="admin-data-table__cell">
+                                <img
+                                    v-if="categoryImageUrl(category)"
+                                    :src="categoryImageUrl(category)"
+                                    :alt="category.name"
+                                    class="h-10 w-10 rounded-lg object-cover"
+                                />
+                                <span v-else class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-[10px] text-gray-400">—</span>
+                            </td>
                             <td class="admin-data-table__cell font-medium text-brand-navy">{{ category.name }}</td>
                             <td class="admin-data-table__cell text-gray-600">
                                 {{ category.parent?.name || parentLabel(category.parent_id) }}
@@ -201,7 +229,7 @@ watch(search, () => {
                             </td>
                         </tr>
                         <tr v-if="categories.data.length === 0">
-                            <td colspan="5" class="px-5 py-12 text-center">
+                            <td colspan="6" class="px-5 py-12 text-center">
                                 <p class="text-sm text-gray-500">
                                     {{ search ? 'No categories match your search.' : 'No categories yet.' }}
                                 </p>
@@ -267,6 +295,23 @@ watch(search, () => {
                             v-model="form.description"
                             rows="3"
                             class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-brand-teal focus:ring-brand-teal"
+                        />
+                    </div>
+                    <div>
+                        <InputLabel for="image" value="Image" />
+                        <input
+                            id="image"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            class="mt-1 block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-orange/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand-orange"
+                            @change="onImageChange"
+                        />
+                        <InputError class="mt-1" :message="form.errors.image" />
+                        <img
+                            v-if="imagePreview"
+                            :src="imagePreview"
+                            alt=""
+                            class="mt-2 h-20 w-20 rounded-xl object-cover ring-1 ring-gray-100"
                         />
                     </div>
                     <div>

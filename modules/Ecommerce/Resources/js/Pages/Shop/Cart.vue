@@ -34,6 +34,7 @@ const removeItem = (item) => {
     <Head title="Cart" />
 
     <StorefrontLayout>
+        <div class="w-full px-4 py-8 sm:px-6 lg:px-8">
         <div class="mb-6 flex items-end justify-between gap-4">
             <div>
                 <h1 class="text-3xl font-semibold tracking-tight">Cart</h1>
@@ -88,5 +89,6 @@ const removeItem = (item) => {
         </div>
 
         <p v-else class="py-16 text-center text-sm text-gray-500">Your cart is empty.</p>
+        </div>
     </StorefrontLayout>
 </template>

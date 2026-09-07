@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 use Modules\Billing\Services\PlanService;
+use Modules\Ecommerce\Services\CartService;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -60,6 +61,17 @@ class HandleInertiaRequests extends Middleware
                 'receipt' => $request->session()->get('receipt'),
             ],
             'cartCount' => fn () => (int) collect($request->session()->get('ecommerce_cart', []))->sum('quantity'),
+            'shopCart' => function () {
+                try {
+                    if (! app(ModuleManager::class)->enabled('ecommerce')) {
+                        return null;
+                    }
+
+                    return app(CartService::class)->detailed();
+                } catch (\Throwable) {
+                    return null;
+                }
+            },
         ];
     }
 }

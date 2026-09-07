@@ -161,11 +161,31 @@ class CartService extends Service
             $currency = $resolved['currency'] ?? $currency;
             $available = $this->stock->available($product->id, $variantId);
 
+            $imagePath = null;
+            if ($variantId) {
+                $imagePath = DB::table('product_media')
+                    ->where('product_variant_id', $variantId)
+                    ->orderByDesc('is_primary')
+                    ->orderBy('sort_order')
+                    ->value('path');
+            }
+            if (! $imagePath) {
+                $imagePath = DB::table('product_media')
+                    ->where('product_id', $product->id)
+                    ->whereNull('product_variant_id')
+                    ->orderByDesc('is_primary')
+                    ->orderBy('sort_order')
+                    ->value('path');
+            }
+
             $items[] = [
                 'product_id' => $product->id,
                 'product_variant_id' => $variantId,
                 'sku' => $sku,
                 'name' => $name,
+                'image_url' => $imagePath
+                    ? '/storage/'.ltrim(str_replace('\\', '/', $imagePath), '/')
+                    : null,
                 'quantity' => number_format($line['quantity'], 4, '.', ''),
                 'unit_price' => number_format($unit, 4, '.', ''),
                 'line_total' => number_format($lineTotal, 4, '.', ''),
@@ -180,6 +200,7 @@ class CartService extends Service
             'subtotal' => number_format($subtotal, 4, '.', ''),
             'currency' => $currency,
             'count' => (int) collect($items)->sum(fn ($i) => (float) $i['quantity']),
+            'free_shipping_threshold' => 2000,
         ];
     }
 

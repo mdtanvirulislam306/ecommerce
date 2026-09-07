@@ -4,8 +4,10 @@ namespace Modules\Catalog\Services;
 
 use App\Core\Support\Service;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Modules\Catalog\Models\Category;
 use Modules\Catalog\Support\GeneratesUniqueSlug;
 
@@ -41,28 +43,37 @@ class CategoryService extends Service
         return $this->buildTree($categories);
     }
 
-    public function create(array $data): Category
+    public function create(array $data, ?UploadedFile $image = null): Category
     {
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $image) {
             return Category::query()->create([
                 'parent_id' => $data['parent_id'] ?? null,
                 'name' => $data['name'],
                 'slug' => $data['slug'] ?? $this->uniqueSlug($data['name'], Category::class),
                 'description' => $data['description'] ?? null,
+                'image_path' => $image?->store('categories', 'public'),
                 'is_active' => $data['is_active'] ?? true,
                 'sort_order' => $data['sort_order'] ?? 0,
             ]);
         });
     }
 
-    public function update(Category $category, array $data): Category
+    public function update(Category $category, array $data, ?UploadedFile $image = null): Category
     {
-        return DB::transaction(function () use ($category, $data) {
+        return DB::transaction(function () use ($category, $data, $image) {
+            $imagePath = $category->image_path;
+
+            if ($image !== null) {
+                $this->deleteStoredImage($category->image_path);
+                $imagePath = $image->store('categories', 'public');
+            }
+
             $category->update([
                 'parent_id' => $data['parent_id'] ?? $category->parent_id,
                 'name' => $data['name'],
                 'slug' => $data['slug'] ?? $this->uniqueSlug($data['name'], Category::class, $category->id),
                 'description' => $data['description'] ?? $category->description,
+                'image_path' => $imagePath,
                 'is_active' => $data['is_active'] ?? $category->is_active,
                 'sort_order' => $data['sort_order'] ?? $category->sort_order,
             ]);
@@ -73,7 +84,10 @@ class CategoryService extends Service
 
     public function delete(Category $category): void
     {
-        DB::transaction(fn () => $category->delete());
+        DB::transaction(function () use ($category) {
+            $this->deleteStoredImage($category->image_path);
+            $category->delete();
+        });
     }
 
     /**
@@ -94,5 +108,12 @@ class CategoryService extends Service
                 'children' => $this->buildTree($categories, $category->id),
             ])
             ->all();
+    }
+
+    private function deleteStoredImage(?string $path): void
+    {
+        if ($path) {
+            Storage::disk('public')->delete($path);
+        }
     }
 }
