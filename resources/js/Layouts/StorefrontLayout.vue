@@ -26,7 +26,7 @@ const cartTotalLabel = computed(() =>
 const flash = computed(() => page.props.flash);
 const query = ref(props.search ?? '');
 const searching = ref(false);
-const { openCart, setCartButtonEl } = useShopUi();
+const { openCart, setCartButtonEl, state } = useShopUi();
 
 /** @type {ReturnType<typeof setTimeout>|null} */
 let searchTimer = null;
@@ -222,7 +222,7 @@ onBeforeUnmount(() => {
             </form>
         </header>
 
-        <main>
+        <main :class="cartCount > 0 ? 'pb-[4.75rem] lg:pb-0' : ''">
             <div v-if="flash?.success && !flash?.order_placed" class="w-full px-4 pt-4 sm:px-6 lg:px-8">
                 <div class="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-100">
                     {{ flash.success }}
@@ -231,29 +231,29 @@ onBeforeUnmount(() => {
             <slot />
         </main>
 
-        <!-- Floating right-middle cart card -->
+        <!-- Mobile: full-width bottom bar. Desktop: right-middle card. -->
         <div
-            v-show="cartCount > 0"
-            class="fixed right-0 top-1/2 z-50 -translate-y-1/2"
+            v-show="cartCount > 0 && !state.cartOpen"
+            class="fixed inset-x-0 bottom-0 z-50 bg-brand-navy pb-[env(safe-area-inset-bottom)] lg:inset-x-auto lg:bottom-auto lg:right-0 lg:top-1/2 lg:bg-transparent lg:pb-0 lg:-translate-y-1/2"
         >
             <button
                 id="shop-cart-target"
                 data-shop-cart-target
                 :ref="setCartButtonEl"
                 type="button"
-                class="flex w-[4.75rem] flex-col overflow-hidden rounded-l-2xl shadow-xl shadow-brand-navy/25 transition hover:brightness-105 active:scale-[0.98]"
+                class="flex w-full items-stretch overflow-hidden shadow-[0_-6px_24px_rgba(44,75,96,0.18)] transition hover:brightness-105 active:brightness-95 lg:w-[4.75rem] lg:flex-col lg:rounded-l-2xl lg:shadow-xl lg:shadow-brand-navy/25 lg:active:scale-[0.98]"
                 aria-label="Open cart"
                 @click="openCart"
             >
-                <span class="flex flex-col items-center gap-1 bg-brand-orange px-2 py-3 text-white">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/25">
+                <span class="flex min-w-0 flex-1 items-center gap-2.5 bg-brand-orange px-4 py-3 text-white lg:flex-col lg:gap-1 lg:px-2 lg:py-3">
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/25">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 10-8 0v4M5 9h14l-1.2 11.1a2 2 0 01-2 1.9H8.2a2 2 0 01-2-1.9L5 9z" />
                         </svg>
                     </span>
-                    <span class="text-[11px] font-bold italic leading-tight">{{ cartItemsLabel }}</span>
+                    <span class="min-w-0 truncate text-sm font-bold italic leading-tight lg:text-[11px]">{{ cartItemsLabel }}</span>
                 </span>
-                <span class="bg-brand-navy px-2 py-2.5 text-center text-[12px] font-bold leading-none text-white">
+                <span class="flex shrink-0 items-center bg-brand-navy px-5 py-3 text-sm font-bold leading-none text-white lg:w-full lg:justify-center lg:px-2 lg:py-2.5 lg:text-[12px]">
                     ৳{{ cartTotalLabel }}
                 </span>
             </button>

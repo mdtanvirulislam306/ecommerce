@@ -2,6 +2,7 @@
 import ShopProductCard from '../../Components/ShopProductCard.vue';
 import ShopStoryViewer from '../../Components/ShopStoryViewer.vue';
 import StorefrontLayout from '@/Layouts/StorefrontLayout.vue';
+import { useShopDragRow } from '@/composables/useShopDragRow';
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -51,6 +52,10 @@ const categoryHref = (slug) => route('shop.index', { category: slug });
 const isActiveCategory = (slug) => props.category?.slug === slug || props.category?.root_slug === slug;
 
 const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 lg:gap-4';
+
+const categoryScroller = useShopDragRow();
+const storyScroller = useShopDragRow();
+const childScroller = useShopDragRow();
 </script>
 
 <template>
@@ -101,10 +106,21 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
             </aside>
 
             <div class="min-w-0 flex-1 space-y-8 px-4 py-5 sm:px-6 lg:px-8 lg:py-3">
-                <div class="flex gap-2.5 overflow-x-auto pb-1 lg:hidden">
+                <div
+                    :ref="(el) => { categoryScroller.row.value = el }"
+                    class="shop-drag-row -mx-4 flex items-center gap-2.5 px-4 pb-1.5 pt-2 lg:hidden"
+                    :class="{ 'is-dragging': categoryScroller.drag.pointerId !== null }"
+                    @pointerdown="categoryScroller.onPointerDown"
+                    @pointermove="categoryScroller.onPointerMove"
+                    @pointerup="categoryScroller.endDrag"
+                    @pointercancel="categoryScroller.endDrag"
+                    @lostpointercapture="categoryScroller.endDrag"
+                    @click.capture="categoryScroller.onClickCapture"
+                >
                     <Link
                         :href="route('shop.index')"
-                        class="shrink-0 rounded-full px-4 py-2 text-sm font-medium ring-1"
+                        draggable="false"
+                        class="inline-flex h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-medium ring-1"
                         :class="!search && !category ? 'bg-brand-orange text-white ring-brand-orange' : 'bg-white text-brand-navy ring-gray-200'"
                     >
                         All
@@ -113,14 +129,16 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                         v-for="item in categories"
                         :key="`m-${item.id}`"
                         :href="categoryHref(item.slug)"
-                        class="flex shrink-0 items-center gap-2 rounded-full bg-white py-1.5 pl-1.5 pr-3.5 text-sm font-medium ring-1"
+                        draggable="false"
+                        class="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-white pl-1.5 pr-3.5 text-sm font-medium ring-1"
                         :class="isActiveCategory(item.slug) ? 'text-brand-orange ring-brand-orange' : 'text-brand-navy ring-gray-200'"
                     >
                         <img
                             v-if="item.image_url"
                             :src="item.image_url"
                             alt=""
-                            class="h-8 w-8 rounded-full object-cover"
+                            class="pointer-events-none h-8 w-8 rounded-full object-cover"
+                            draggable="false"
                         />
                         <span
                             v-else
@@ -153,28 +171,41 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                 </section>
 
                 <section v-else-if="isCategoryView" class="space-y-4">
-                    <div v-if="child_categories.length" class="flex gap-3 overflow-x-auto pb-1">
+                    <div
+                        v-if="child_categories.length"
+                        :ref="(el) => { childScroller.row.value = el }"
+                        class="shop-drag-row flex gap-3 py-1"
+                        :class="{ 'is-dragging': childScroller.drag.pointerId !== null }"
+                        @pointerdown="childScroller.onPointerDown"
+                        @pointermove="childScroller.onPointerMove"
+                        @pointerup="childScroller.endDrag"
+                        @pointercancel="childScroller.endDrag"
+                        @lostpointercapture="childScroller.endDrag"
+                        @click.capture="childScroller.onClickCapture"
+                    >
                         <Link
                             v-for="child in child_categories"
                             :key="child.id"
                             :href="categoryHref(child.slug)"
-                            class="group flex w-[7.5rem] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-brand-orange/40 hover:shadow-md sm:w-36"
+                            draggable="false"
+                            class="group flex w-[7.5rem] shrink-0 flex-col overflow-hidden rounded-xl border border-brand-orange bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-brand-orange-dark hover:shadow-md sm:w-36"
                         >
-                            <span class="flex aspect-[4/5] items-center justify-center bg-gray-50 p-3 sm:p-4">
+                            <span class="relative block aspect-square overflow-hidden bg-gray-100">
                                 <img
                                     v-if="child.image_url"
                                     :src="child.image_url"
                                     :alt="child.name"
-                                    class="max-h-full max-w-full object-contain transition duration-300 group-hover:scale-[1.03]"
+                                    class="pointer-events-none absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                                    draggable="false"
                                 />
                                 <span
                                     v-else
-                                    class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand-orange to-brand-teal text-lg font-semibold text-white sm:h-20 sm:w-20 sm:text-xl"
+                                    class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-brand-orange to-brand-teal text-2xl font-semibold text-white"
                                 >
                                     {{ child.name.charAt(0) }}
                                 </span>
                             </span>
-                            <span class="border-t border-gray-100 px-2.5 py-2.5 text-center sm:py-3">
+                            <span class="px-2.5 py-2.5 text-center sm:py-3">
                                 <span class="block truncate text-sm font-medium text-brand-navy group-hover:text-brand-orange">
                                     {{ child.name }}
                                 </span>
@@ -215,19 +246,30 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                         <div class="mb-3 flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-brand-navy">Stories</h2>
                         </div>
-                        <div class="flex gap-3 overflow-x-auto pb-2">
+                        <div
+                            :ref="(el) => { storyScroller.row.value = el }"
+                            class="shop-drag-row -mx-4 flex gap-3 px-4 py-1"
+                            :class="{ 'is-dragging': storyScroller.drag.pointerId !== null }"
+                            @pointerdown="storyScroller.onPointerDown"
+                            @pointermove="storyScroller.onPointerMove"
+                            @pointerup="storyScroller.endDrag"
+                            @pointercancel="storyScroller.endDrag"
+                            @lostpointercapture="storyScroller.endDrag"
+                            @click.capture="storyScroller.onClickCapture"
+                        >
                             <button
                                 v-for="group in story_groups"
                                 :key="group.key"
                                 type="button"
-                                class="group relative w-28 shrink-0 overflow-hidden rounded-2xl bg-gray-100 text-left shadow-sm ring-1 ring-gray-100 transition hover:-translate-y-0.5 hover:ring-brand-orange/40 sm:w-32"
+                                draggable="false"
+                                class="group relative w-28 shrink-0 overflow-hidden rounded-2xl bg-gray-100 text-left shadow-sm ring-1 ring-brand-orange transition hover:ring-brand-orange-dark sm:w-32"
                                 @click="openStoryGroup(group)"
                             >
                                 <span class="block aspect-[3/4] overflow-hidden bg-brand-navy/5">
                                     <video
                                         v-if="group.cover?.type === 'video'"
                                         :src="group.cover.media_url"
-                                        class="h-full w-full object-cover"
+                                        class="pointer-events-none h-full w-full object-cover"
                                         muted
                                         playsinline
                                         preload="metadata"
@@ -236,7 +278,8 @@ const productGridClass = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 l
                                         v-else
                                         :src="group.cover?.media_url"
                                         :alt="group.label"
-                                        class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
+                                        class="pointer-events-none h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
+                                        draggable="false"
                                         loading="lazy"
                                     />
                                 </span>

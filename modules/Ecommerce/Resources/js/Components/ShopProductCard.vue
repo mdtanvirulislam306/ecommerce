@@ -53,7 +53,7 @@ const addClick = async (event) => {
 <template>
     <article
         data-shop-fly-root
-        class="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-brand-teal/30 hover:shadow-md"
+        class="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-brand-orange bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-brand-orange-dark hover:shadow-md"
         @click="openDetails"
     >
         <div class="relative aspect-square overflow-hidden bg-gray-50">

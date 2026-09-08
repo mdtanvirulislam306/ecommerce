@@ -72,4 +72,41 @@ class CatalogCategoryTest extends TestCase
 
         $this->assertDatabaseMissing('categories', ['name' => 'Men']);
     }
+
+    public function test_updates_category_with_media_library_image(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('media/women.jpg', 'fake-image');
+
+        $category = Category::query()->create([
+            'name' => 'Women',
+            'slug' => 'women',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $mediaId = DB::table('media_library_items')->insertGetId([
+            'name' => 'women.jpg',
+            'disk' => 'public',
+            'path' => 'media/women.jpg',
+            'mime' => 'image/jpeg',
+            'size' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->put(route('products.categories.update', $category), [
+                'name' => 'Women',
+                'is_active' => true,
+                'media_library_id' => $mediaId,
+            ])
+            ->assertRedirectToRoute('products.categories.index');
+
+        $category->refresh();
+
+        $this->assertSame($mediaId, $category->media_library_id);
+        $this->assertNotNull($category->image_path);
+        Storage::disk('public')->assertExists($category->image_path);
+    }
 }

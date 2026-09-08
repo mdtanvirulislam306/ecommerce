@@ -57,6 +57,7 @@ class ModuleSeederTest extends TestCase
         $this->assertDatabaseHas('hrm_employees', ['code' => 'EMP-0001']);
         $this->assertDatabaseHas('support_tickets', ['requester_email' => 'buyer@acme.example']);
         $this->assertDatabaseHas('marketing_coupons', ['code' => 'WELCOME10']);
+        $this->assertSame(15, (int) DB::table('stories')->count());
         $this->assertDatabaseHas('journal_entries', ['memo' => 'Opening cash and equity (seeder)']);
         $this->assertDatabaseHas('tasks', ['title' => 'Follow up Acme wholesale order']);
         $this->assertDatabaseHas('workflows', ['name' => 'Large sales order approval']);
@@ -73,5 +74,6 @@ class ModuleSeederTest extends TestCase
         $this->assertSame(1, (int) DB::table('customers')->where('code', 'CUS-00001')->count());
         $this->assertSame(1, (int) DB::table('sales_orders')->count());
         $this->assertSame(1, (int) DB::table('leads')->where('email', 'buyer@acme.example')->count());
+        $this->assertSame(15, (int) DB::table('stories')->count());
     }
 }

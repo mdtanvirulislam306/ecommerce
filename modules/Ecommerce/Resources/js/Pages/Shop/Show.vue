@@ -532,7 +532,7 @@ const postAdd = (event, { buyNow = false } = {}) => {
                                     v-for="item in product.related"
                                     :key="item.id"
                                     type="button"
-                                    class="overflow-hidden rounded-2xl border border-gray-100 bg-white text-left transition hover:-translate-y-0.5 hover:border-brand-teal/40 hover:shadow-md"
+                                    class="overflow-hidden rounded-2xl border border-brand-orange bg-white text-left transition hover:-translate-y-0.5 hover:border-brand-orange-dark hover:shadow-md"
                                     @click="openProductModal(item.slug)"
                                 >
                                     <div class="aspect-square bg-gray-50">

@@ -167,17 +167,10 @@ export function useShopUi() {
             flyer.className = 'shop-fly-item';
             flyer.setAttribute('aria-hidden', 'true');
             flyer.style.cssText = [
-                'position:fixed',
-                'z-index:9999',
                 `width:${size}px`,
                 `height:${size}px`,
                 `left:${startX - size / 2}px`,
                 `top:${startY - size / 2}px`,
-                'border-radius:12px',
-                'overflow:hidden',
-                'pointer-events:none',
-                'box-shadow:0 12px 30px rgba(44,75,96,0.28)',
-                'will-change:transform,opacity',
                 imageUrl ? '' : 'background:#F27D42',
             ].filter(Boolean).join(';');
 
@@ -211,7 +204,7 @@ export function useShopUi() {
                 return { x, y };
             };
 
-            const duration = 5000;
+            const duration = 1000;
 
             if (typeof flyer.animate === 'function') {
                 const steps = 24;
