@@ -10,13 +10,28 @@ use Modules\Ecommerce\Http\Requests\StoreCmsPageRequest;
 use Modules\Ecommerce\Http\Requests\UpdateCmsPageRequest;
 use Modules\Ecommerce\Models\CmsPage;
 use Modules\Ecommerce\Services\CmsPageService;
+use Modules\Ecommerce\Services\PageBuilder\PageBuilderRegistry;
+use Modules\Ecommerce\Services\StorefrontCatalogService;
 
 class CmsPageBuilderController extends Controller
 {
-    public function show(?CmsPage $cmsPage = null): Response
-    {
+    public function show(
+        PageBuilderRegistry $registry,
+        StorefrontCatalogService $catalog,
+        ?CmsPage $cmsPage = null,
+    ): Response {
         return Inertia::render('Ecommerce/Cms/Pages/Builder', [
-            'page' => $cmsPage,
+            'page' => $cmsPage ? [
+                ...$cmsPage->toArray(),
+                'blocks' => $registry->documentForEditor($cmsPage),
+            ] : null,
+            'widgetCatalog' => $registry->catalog(),
+            'layouts' => $registry->layouts(),
+            'emptyDocument' => $registry->emptyDocument(),
+            'catalogPreview' => [
+                'products' => $catalog->featuredProducts(8),
+                'categories' => $catalog->activeCategories(12),
+            ],
         ]);
     }
 

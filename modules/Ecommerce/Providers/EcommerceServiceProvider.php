@@ -2,6 +2,9 @@
 
 namespace Modules\Ecommerce\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -10,6 +13,10 @@ class EcommerceServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');
+
+        RateLimiter::for('cms-forms', function (Request $request) {
+            return Limit::perMinute(5)->by((string) $request->ip());
+        });
     }
 
     public static function registerRoutes(): void

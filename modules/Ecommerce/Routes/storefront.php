@@ -1,9 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Ecommerce\Http\Controllers\Storefront\CmsPageController;
 use Modules\Ecommerce\Http\Controllers\Storefront\ShopController;
 
 Route::get('/', [ShopController::class, 'index'])->name('index');
+Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('pages.show');
+Route::get('/pages/{slug}/preview', [CmsPageController::class, 'preview'])
+    ->middleware(['auth', 'verified'])
+    ->name('pages.preview');
+Route::post('/pages/{slug}/forms', [CmsPageController::class, 'submitForm'])
+    ->middleware('throttle:cms-forms')
+    ->name('pages.forms.store');
 Route::get('/products/{slug}', [ShopController::class, 'show'])->name('products.show');
 Route::get('/products/{slug}/quick', [ShopController::class, 'quick'])->name('products.quick');
 Route::get('/cart', [ShopController::class, 'cart'])->name('cart');

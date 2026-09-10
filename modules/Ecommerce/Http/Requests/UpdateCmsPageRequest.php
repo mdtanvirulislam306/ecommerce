@@ -4,6 +4,8 @@ namespace Modules\Ecommerce\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+use Modules\Ecommerce\Services\PageBuilder\PageBuilderRegistry;
 
 class UpdateCmsPageRequest extends FormRequest
 {
@@ -30,9 +32,28 @@ class UpdateCmsPageRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('cms_pages', 'slug')->ignore($pageId)],
             'body' => ['nullable', 'string'],
+            'blocks' => ['nullable', 'array'],
+            'blocks.sections' => ['required_with:blocks', 'array'],
             'is_published' => ['boolean'],
             'seo_title' => ['nullable', 'string', 'max:255'],
-            'seo_description' => ['nullable', 'string'],
+            'seo_description' => ['nullable', 'string', 'max:500'],
+        ];
+    }
+
+    /**
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if ($validator->errors()->isNotEmpty() || ! is_array($this->input('blocks'))) {
+                    return;
+                }
+
+                $this->container->make(PageBuilderRegistry::class)
+                    ->validateDocument($this->input('blocks'), $validator);
+            },
         ];
     }
 }
