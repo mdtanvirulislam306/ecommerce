@@ -2,11 +2,14 @@
 
 namespace Modules\Support\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CannedResponse extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'support_canned_responses';
 
     protected $fillable = [

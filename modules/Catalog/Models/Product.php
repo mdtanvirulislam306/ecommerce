@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,10 @@ use Modules\Catalog\Enums\PublicationStatus;
 
 class Product extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
+        'tenant_id',
         'product_family_id',
         'brand_id',
         'primary_category_id',

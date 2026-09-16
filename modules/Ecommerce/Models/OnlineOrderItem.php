@@ -2,11 +2,14 @@
 
 namespace Modules\Ecommerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OnlineOrderItem extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'online_order_id',
         'product_id',

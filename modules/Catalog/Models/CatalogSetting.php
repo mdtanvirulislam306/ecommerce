@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Catalog\Enums\ProductStatus;
@@ -9,6 +10,8 @@ use Modules\Catalog\Enums\PublicationStatus;
 
 class CatalogSetting extends Model
 {
+    use BelongsToTenant;
+
     protected $attributes = [
         'default_product_status' => 'draft',
         'default_publication_status' => 'not_published',

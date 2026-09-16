@@ -2,11 +2,14 @@
 
 namespace Modules\Marketing\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Marketing\Enums\ReferralStatus;
 
 class Referral extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'marketing_referrals';
 
     protected $fillable = [

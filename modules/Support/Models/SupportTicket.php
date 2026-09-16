@@ -2,6 +2,7 @@
 
 namespace Modules\Support\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,8 @@ use Modules\Support\Enums\TicketStatus;
 
 class SupportTicket extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'number',
         'subject',

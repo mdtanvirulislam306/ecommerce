@@ -2,10 +2,13 @@
 
 namespace Modules\Inventory\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class InventoryBatch extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'inventory_batches';
 
     protected $fillable = [

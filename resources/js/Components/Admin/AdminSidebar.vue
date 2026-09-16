@@ -10,6 +10,7 @@ const page = usePage();
 const currentUrl = computed(() => page.url);
 const enabledModules = computed(() => page.props.enabledModules ?? []);
 const shopFlags = computed(() => page.props.shopFlags ?? {});
+const isPlatformAdmin = computed(() => Boolean(page.props.auth?.user?.is_platform_admin));
 
 /** Map sidebar keys to module.json codes */
 const navKeyToModuleCode = {
@@ -53,6 +54,10 @@ const filterNavChildren = (mod) => {
             }
 
             const path = child.path || '';
+
+            if (path.startsWith('/platform') && !isPlatformAdmin.value) {
+                return null;
+            }
 
             if (mod.key === 'commerce' && !flags.multi_price) {
                 if (path.includes('/pricing/price-lists') || path.includes('/pricing/customer-groups') || path.includes('/pricing/quantity') || path.includes('/pricing/history')) {

@@ -2,11 +2,14 @@
 
 namespace Modules\Purchase\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PurchaseReturnItem extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'purchase_return_id',
         'purchase_order_item_id',

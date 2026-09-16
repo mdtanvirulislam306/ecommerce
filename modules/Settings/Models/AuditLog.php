@@ -2,10 +2,13 @@
 
 namespace Modules\Settings\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class AuditLog extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'audit_logs';
 
     protected $fillable = [

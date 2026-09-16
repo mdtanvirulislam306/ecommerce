@@ -2,11 +2,14 @@
 
 namespace Modules\Commerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LoyaltyPoint extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'loyalty_points';
 
     protected $fillable = [

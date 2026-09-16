@@ -2,10 +2,13 @@
 
 namespace Modules\Workflow\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class ApprovalPolicy extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'approval_policies';
 
     protected $fillable = [

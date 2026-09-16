@@ -2,6 +2,7 @@
 
 namespace Modules\Ecommerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +12,8 @@ use Modules\Ecommerce\Enums\PaymentMethod;
 
 class OnlineOrder extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'number',
         'status',

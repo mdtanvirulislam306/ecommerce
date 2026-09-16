@@ -40,6 +40,11 @@ See also: `.cursor/rules/agent-continue.mdc`.
 - [x] Progressive complexity defaults + flags + simple product price/stock
 - [x] Phase 4 Sales/Inventory observability
 - [x] POS barcode + thermal; Hrm/Support scaffolds; Marketing campaigns stub
+- [x] Multi-tenant SaaS kernel (tenants, host resolve, BelongsToTenant, Default bootstrap)
+- [x] Platform Super Admin provisioning UI (`/platform/tenants`)
+- [x] Business-table `tenant_id` isolation wave + storefront raw-query filters
+- [x] Tenant-safe cart/session keys + local multi-host docs
+- [x] Suspend/expiry lock + IDOR isolation tests + architecture doc updates
 
 ---
 

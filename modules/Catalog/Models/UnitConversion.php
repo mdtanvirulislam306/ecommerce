@@ -2,11 +2,14 @@
 
 namespace Modules\Catalog\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UnitConversion extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'from_unit_id',
         'to_unit_id',

@@ -2,10 +2,13 @@
 
 namespace Modules\Workflow\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class WorkflowDefinition extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'workflows';
 
     protected $fillable = [

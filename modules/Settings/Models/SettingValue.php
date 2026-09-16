@@ -2,11 +2,14 @@
 
 namespace Modules\Settings\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
 class SettingValue extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = ['group', 'key', 'value'];
 
     public static function getValue(string $key, mixed $default = null): mixed

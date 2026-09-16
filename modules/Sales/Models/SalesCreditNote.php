@@ -2,6 +2,7 @@
 
 namespace Modules\Sales\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Modules\Sales\Enums\CreditNoteStatus;
 
 class SalesCreditNote extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'number',
         'sales_invoice_id',

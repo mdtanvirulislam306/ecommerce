@@ -2,11 +2,14 @@
 
 namespace Modules\Pos\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PosReturnItem extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'pos_return_id',
         'pos_order_item_id',

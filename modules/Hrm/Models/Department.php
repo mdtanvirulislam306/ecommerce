@@ -2,10 +2,13 @@
 
 namespace Modules\Hrm\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Department extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'hrm_departments';
 
     protected $fillable = [

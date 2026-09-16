@@ -2,6 +2,7 @@
 
 namespace Modules\Ecommerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Modules\Ecommerce\Enums\ReviewStatus;
 
 class ProductReview extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'product_id',
         'user_id',

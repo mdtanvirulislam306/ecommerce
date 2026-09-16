@@ -2,12 +2,15 @@
 
 namespace Modules\Hrm\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Employee extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'hrm_employees';
 
     protected $fillable = [

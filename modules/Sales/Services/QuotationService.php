@@ -4,6 +4,7 @@ namespace Modules\Sales\Services;
 
 use App\Core\Contracts\PriceResolver;
 use App\Core\Support\Service;
+use App\Core\Tenant\TenantQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -351,7 +352,7 @@ class QuotationService extends Service
                 ]);
             }
 
-            $product = DB::table('products')->where('id', $productId)->first();
+            $product = TenantQuery::constrain(DB::table('products'), 'products')->where('id', $productId)->first();
 
             if ($product === null || $product->status === 'archived') {
                 throw ValidationException::withMessages([

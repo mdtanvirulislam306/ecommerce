@@ -2,11 +2,14 @@
 
 namespace Modules\Catalog\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductAttributeValue extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'product_id',
         'attribute_id',

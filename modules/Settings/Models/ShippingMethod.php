@@ -2,10 +2,13 @@
 
 namespace Modules\Settings\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class ShippingMethod extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'shipping_methods';
 
     protected $fillable = [

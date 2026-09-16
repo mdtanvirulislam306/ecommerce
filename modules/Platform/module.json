@@ -1,0 +1,8 @@
+{
+  "name": "Platform",
+  "code": "platform",
+  "version": "1.0.0",
+  "description": "Platform super-admin tenant provisioning and control",
+  "is_core": true,
+  "dependencies": []
+}

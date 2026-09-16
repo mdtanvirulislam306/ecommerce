@@ -2,6 +2,7 @@
 
 namespace Modules\Crm\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Modules\Crm\Enums\ActivityType;
 
 class CrmActivity extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'crm_activities';
 
     protected $fillable = [

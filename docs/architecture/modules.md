@@ -93,15 +93,28 @@ Tables (implemented when billing lands):
 | `modules` | Registered modules (`code`, `name`, `is_core`) |
 | `plans` | Subscription plans |
 | `plan_modules` | Plan → allowed module codes |
-| `subscriptions` | Active plan per shop/tenant |
+| `subscriptions` | Active plan **per tenant** (`tenant_id`) |
+| `tenants` / `tenant_domains` | Shop identity + host resolution |
+| `tenant_module_overrides` | Manual per-tenant module deals |
 
 `ModuleManager::enabled('catalog')`:
 
 1. `is_core` → true
-2. Else check current subscription’s plan modules
+2. Else check **current tenant** subscription’s plan modules (+ overrides)
 3. Else false
 
 Share `enabledModules` via Inertia middleware so Vue can hide nav items.
+
+### Platform module
+
+`modules/Platform` is core. Routes under `/platform/*` (auth + `platform` middleware) provision tenants, domains, owners, plans, and suspend/reactivate. No public self-signup.
+
+### Local multi-host (Laragon)
+
+1. Add hosts: `127.0.0.1 shop-a.test shop-b.test` (or Laragon “Auto virtual hosts”).
+2. Create tenants with those domains in Platform UI.
+3. Optional: leave `SESSION_DOMAIN` null locally so each host gets its own cookies; for production custom domains use the shop’s apex (e.g. `.example.com`) only when you intentionally share sessions across subdomains.
+4. Cart keys already include tenant id, so cross-tenant cart bleed is prevented even if cookies were shared.
 
 ## ServiceProvider per module
 

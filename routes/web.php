@@ -15,6 +15,7 @@ use Modules\Hrm\Providers\HrmServiceProvider;
 use Modules\Inventory\Providers\InventoryServiceProvider;
 use Modules\Marketing\Providers\MarketingServiceProvider;
 use Modules\Notifications\Providers\NotificationsServiceProvider;
+use Modules\Platform\Providers\PlatformServiceProvider;
 use Modules\Pos\Providers\PosServiceProvider;
 use Modules\Purchase\Providers\PurchaseServiceProvider;
 use Modules\Reports\Providers\ReportsServiceProvider;
@@ -63,5 +64,7 @@ Route::prefix('admin')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+PlatformServiceProvider::registerRoutes();
 
 EcommerceServiceProvider::registerStorefrontRoutes();

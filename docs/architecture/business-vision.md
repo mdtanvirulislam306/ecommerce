@@ -49,7 +49,7 @@ Revenue and master data first. Do **not** build every ERP module at once.
 - Marketing automation (email/SMS/WhatsApp)
 - BI / forecasting
 - AI assistant features
-- Full multi-tenant SaaS billing UX
+- Full Stripe / auto-billing UX (manual tenant provisioning is live)
 
 Defer until needed: Redis, Meilisearch, S3, GraphQL, heavy DDD ceremony.
 
@@ -124,19 +124,24 @@ Prefer:
 
 ---
 
-## SaaS hierarchy (design for later, don’t block now)
-
-Keep this mental model; add tables when multi-tenant work starts:
+## SaaS hierarchy (shared MySQL + tenant_id)
 
 ```text
 Platform → Tenant → Company → Branch → Warehouse
 ```
 
-Until then:
+**Implemented now (multi-tenant kernel):**
 
-- Single-tenant app is fine
-- Module gate via `module:{code}` + `enabledModules` already prepares subscription unlock
-- Avoid sprinkling `tenant_id` on every new table **unless** tenancy work is actively in progress — when tenancy lands, add via a focused migration pass
+- Shared database with `tenants`, `tenant_domains`, `tenant_module_overrides`
+- Host → `ResolveTenantFromHost` → `TenantContext`; Eloquent `BelongsToTenant` global scope
+- Platform Super Admin (`is_platform_admin`, `tenant_id = null`) provisions shops at `/platform/tenants`
+- Plans stay global; subscriptions and module overrides are per-tenant
+- Existing install bootstraps as Tenant **Default** (`slug=default`)
+- Email unique per tenant: `unique(tenant_id, email)`
+- Suspended tenant or expired subscription → storefront/admin locked (403); platform console remains open
+- Cart session keys are prefixed by tenant id
+
+Company/Branch under a tenant remains future work.
 
 ---
 

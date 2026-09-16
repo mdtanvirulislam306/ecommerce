@@ -4,8 +4,11 @@ namespace Modules\Billing\Services;
 
 use App\Core\Module\ModuleManager;
 use App\Core\Support\Service;
+use App\Core\Tenant\TenantContext;
+use App\Models\TenantModuleOverride;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Billing\Enums\PlanCode;
 use Modules\Billing\Enums\SubscriptionStatus;
 use Modules\Billing\Models\Plan;
@@ -65,8 +68,12 @@ class PlanService extends Service
             $this->syncPlanModules($free, $this->freeModuleCodes());
             $this->syncPlanModules($pro, $this->allDiscoverableCodes($modules));
 
-            if (! Subscription::query()->where('status', SubscriptionStatus::Active)->exists()) {
+            $tenantId = app(TenantContext::class)->id()
+                ?? (Schema::hasTable('tenants') ? DB::table('tenants')->where('slug', 'default')->value('id') : null);
+
+            if ($tenantId && ! Subscription::query()->where('tenant_id', $tenantId)->where('status', SubscriptionStatus::Active)->exists()) {
                 Subscription::query()->create([
+                    'tenant_id' => $tenantId,
                     'plan_id' => $pro->id,
                     'status' => SubscriptionStatus::Active,
                     'starts_at' => now(),
@@ -74,8 +81,8 @@ class PlanService extends Service
             }
 
             foreach (['multi_price' => false, 'multi_warehouse' => false, 'multi_branch' => false] as $key => $value) {
-                if (! ShopSetting::query()->where('key', $key)->exists()) {
-                    ShopSetting::setValue($key, $value);
+                if (ShopSetting::query()->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))->where('key', $key)->doesntExist()) {
+                    ShopSetting::setValue($key, $value, $tenantId ? (int) $tenantId : null);
                 }
             }
         });
@@ -148,52 +155,94 @@ class PlanService extends Service
         return $plan->fresh('modules');
     }
 
-    public function activeSubscription(): ?Subscription
+    public function activeSubscription(?int $tenantId = null): ?Subscription
     {
-        return Subscription::query()
+        $tenantId ??= app(TenantContext::class)->id();
+
+        $query = Subscription::query()
             ->with('plan.modules')
-            ->where('status', SubscriptionStatus::Active)
-            ->latest('id')
-            ->first();
+            ->where('status', SubscriptionStatus::Active);
+
+        if ($tenantId !== null && Schema::hasColumn('subscriptions', 'tenant_id')) {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        $subscription = $query->latest('id')->first();
+
+        if ($subscription && $subscription->ends_at && $subscription->ends_at->isPast()) {
+            return null;
+        }
+
+        return $subscription;
     }
 
     /**
      * @return list<string>
      */
-    public function enabledModuleCodesFromSubscription(): array
+    public function enabledModuleCodesFromSubscription(?int $tenantId = null): array
     {
-        return Cache::remember(self::ENABLED_MODULES_CACHE_KEY, 300, function () {
-            $subscription = $this->activeSubscription();
+        $tenantId ??= app(TenantContext::class)->id();
+        $cacheKey = self::ENABLED_MODULES_CACHE_KEY.($tenantId ? '.'.$tenantId : '');
+
+        return Cache::remember($cacheKey, 300, function () use ($tenantId) {
+            $codes = [];
+
+            $subscription = $this->activeSubscription($tenantId);
 
             if ($subscription?->plan) {
-                return $subscription->plan->modules->pluck('module_code')->all();
+                $codes = $subscription->plan->modules->pluck('module_code')->all();
+            } else {
+                $free = Plan::query()->where('code', PlanCode::Free->value)->with('modules')->first();
+                $codes = $free?->modules->pluck('module_code')->all() ?? $this->freeModuleCodes();
             }
 
-            $free = Plan::query()->where('code', PlanCode::Free->value)->with('modules')->first();
+            if ($tenantId && Schema::hasTable('tenant_module_overrides')) {
+                $overrides = TenantModuleOverride::query()
+                    ->where('tenant_id', $tenantId)
+                    ->get();
 
-            return $free?->modules->pluck('module_code')->all() ?? $this->freeModuleCodes();
+                foreach ($overrides as $override) {
+                    if ($override->enabled) {
+                        $codes[] = $override->module_code;
+                    } else {
+                        $codes = array_values(array_filter($codes, fn ($c) => $c !== $override->module_code));
+                    }
+                }
+            }
+
+            return array_values(array_unique($codes));
         });
     }
 
-    public function forgetEnabledCache(): void
+    public function forgetEnabledCache(?int $tenantId = null): void
     {
+        $tenantId ??= app(TenantContext::class)->id();
         Cache::forget(self::ENABLED_MODULES_CACHE_KEY);
+        if ($tenantId) {
+            Cache::forget(self::ENABLED_MODULES_CACHE_KEY.'.'.$tenantId);
+        }
     }
 
-    public function assignPlan(Plan $plan): Subscription
+    public function assignPlan(Plan $plan, ?int $tenantId = null, ?string $paymentNote = null): Subscription
     {
-        return DB::transaction(function () use ($plan) {
-            Subscription::query()
-                ->where('status', SubscriptionStatus::Active)
-                ->update(['status' => SubscriptionStatus::Cancelled, 'ends_at' => now()]);
+        $tenantId ??= app(TenantContext::class)->id();
+
+        return DB::transaction(function () use ($plan, $tenantId, $paymentNote) {
+            $query = Subscription::query()->where('status', SubscriptionStatus::Active);
+            if ($tenantId !== null && Schema::hasColumn('subscriptions', 'tenant_id')) {
+                $query->where('tenant_id', $tenantId);
+            }
+            $query->update(['status' => SubscriptionStatus::Cancelled, 'ends_at' => now()]);
 
             $subscription = Subscription::query()->create([
+                'tenant_id' => $tenantId,
                 'plan_id' => $plan->id,
                 'status' => SubscriptionStatus::Active,
                 'starts_at' => now(),
+                'payment_note' => $paymentNote,
             ]);
 
-            $this->forgetEnabledCache();
+            $this->forgetEnabledCache($tenantId);
 
             return $subscription;
         });

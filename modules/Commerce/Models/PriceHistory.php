@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Modules\Commerce\Enums\PriceChangeAction;
 
 class PriceHistory extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'price_history';
 
     protected $fillable = [

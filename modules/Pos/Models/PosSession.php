@@ -2,6 +2,7 @@
 
 namespace Modules\Pos\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,8 @@ use Modules\Pos\Enums\PosSessionStatus;
 
 class PosSession extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'pos_register_id',
         'opened_by',

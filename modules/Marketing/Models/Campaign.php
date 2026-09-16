@@ -2,6 +2,7 @@
 
 namespace Modules\Marketing\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,8 @@ use Modules\Marketing\Enums\CampaignStatus;
 
 class Campaign extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'marketing_campaigns';
 
     protected $fillable = [

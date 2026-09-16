@@ -2,12 +2,15 @@
 
 namespace Modules\Purchase\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Supplier extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'supplier_group_id',
         'name',

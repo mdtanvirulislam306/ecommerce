@@ -2,12 +2,15 @@
 
 namespace Modules\Catalog\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Catalog\Enums\MediaType;
 
 class ProductMedia extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'product_media';
 
     protected $fillable = [

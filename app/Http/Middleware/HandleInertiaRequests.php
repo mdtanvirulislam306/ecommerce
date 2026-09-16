@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Core\Module\ModuleManager;
 use App\Core\Support\ShopComplexity;
+use App\Core\Tenant\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
@@ -36,8 +37,25 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            'cartCount' => fn () => app(CartService::class)->count(),
+            'tenant' => function () {
+                $tenant = app(TenantContext::class)->get();
+
+                return $tenant ? [
+                    'id' => $tenant->id,
+                    'name' => $tenant->name,
+                    'slug' => $tenant->slug,
+                    'status' => $tenant->status,
+                ] : null;
+            },
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'name' => $request->user()->name,
+                    'email' => $request->user()->email,
+                    'is_platform_admin' => (bool) $request->user()->is_platform_admin,
+                    'tenant_id' => $request->user()->tenant_id,
+                ] : null,
             ],
             'enabledModules' => fn () => app(ModuleManager::class)->enabledCodes(),
             'shopFlags' => fn () => ShopComplexity::flags(),
@@ -61,7 +79,6 @@ class HandleInertiaRequests extends Middleware
                 'receipt' => $request->session()->get('receipt'),
                 'order_placed' => $request->session()->get('order_placed'),
             ],
-            'cartCount' => fn () => (int) collect($request->session()->get('ecommerce_cart', []))->sum('quantity'),
             'shopCart' => function () {
                 try {
                     if (! app(ModuleManager::class)->enabled('ecommerce')) {

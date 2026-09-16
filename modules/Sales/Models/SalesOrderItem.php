@@ -2,12 +2,15 @@
 
 namespace Modules\Sales\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Sales\Enums\SalesDeliveryStatus;
 
 class SalesOrderItem extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'sales_order_id',
         'product_id',

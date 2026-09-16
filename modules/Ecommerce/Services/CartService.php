@@ -5,6 +5,8 @@ namespace Modules\Ecommerce\Services;
 use App\Core\Contracts\PriceResolver;
 use App\Core\Contracts\StockAvailability;
 use App\Core\Support\Service;
+use App\Core\Tenant\TenantContext;
+use App\Core\Tenant\TenantQuery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
@@ -18,12 +20,19 @@ class CartService extends Service
         private readonly StockAvailability $stock,
     ) {}
 
+    private function sessionKey(): string
+    {
+        $tenantId = app(TenantContext::class)->id();
+
+        return self::SESSION_KEY.($tenantId ? '_t'.$tenantId : '');
+    }
+
     /**
      * @return list<array{product_id: int, product_variant_id: ?int, quantity: float}>
      */
     public function raw(): array
     {
-        return collect(Session::get(self::SESSION_KEY, []))
+        return collect(Session::get($this->sessionKey(), []))
             ->map(fn ($line) => [
                 'product_id' => (int) ($line['product_id'] ?? 0),
                 'product_variant_id' => ! empty($line['product_variant_id']) ? (int) $line['product_variant_id'] : null,
@@ -41,7 +50,7 @@ class CartService extends Service
 
     public function clear(): void
     {
-        Session::forget(self::SESSION_KEY);
+        Session::forget($this->sessionKey());
     }
 
     public function add(int $productId, float $quantity = 1, ?int $productVariantId = null): void
@@ -71,7 +80,7 @@ class CartService extends Service
             ];
         }
 
-        Session::put(self::SESSION_KEY, $lines);
+        Session::put($this->sessionKey(), $lines);
     }
 
     public function update(int $productId, float $quantity, ?int $productVariantId = null): void
@@ -98,7 +107,7 @@ class CartService extends Service
             throw ValidationException::withMessages(['cart' => 'Cart line not found.']);
         }
 
-        Session::put(self::SESSION_KEY, $lines);
+        Session::put($this->sessionKey(), $lines);
     }
 
     public function remove(int $productId, ?int $productVariantId = null): void
@@ -108,7 +117,7 @@ class CartService extends Service
             ->values()
             ->all();
 
-        Session::put(self::SESSION_KEY, $lines);
+        Session::put($this->sessionKey(), $lines);
     }
 
     /**
@@ -121,7 +130,9 @@ class CartService extends Service
         $currency = 'BDT';
 
         foreach ($this->raw() as $line) {
-            $product = DB::table('products')->where('id', $line['product_id'])->first();
+            $product = TenantQuery::constrain(DB::table('products'), 'products')
+                ->where('id', $line['product_id'])
+                ->first();
 
             if ($product === null || $product->publication_status !== 'published' || $product->status === 'archived') {
                 continue;

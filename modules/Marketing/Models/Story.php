@@ -2,12 +2,15 @@
 
 namespace Modules\Marketing\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Story extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'user_id',
         'title',

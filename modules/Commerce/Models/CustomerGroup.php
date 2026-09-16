@@ -2,11 +2,14 @@
 
 namespace Modules\Commerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CustomerGroup extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'name',
         'code',

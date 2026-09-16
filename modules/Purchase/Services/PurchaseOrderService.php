@@ -5,6 +5,7 @@ namespace Modules\Purchase\Services;
 use App\Core\Contracts\StockAvailability;
 use App\Core\Events\PurchaseGoodsReceived;
 use App\Core\Support\Service;
+use App\Core\Tenant\TenantQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -323,7 +324,7 @@ class PurchaseOrderService extends Service
      */
     public function searchProducts(?string $search = null, int $limit = 40): array
     {
-        $query = DB::table('products')
+        $query = TenantQuery::constrain(DB::table('products'), 'products')
             ->select(['id', 'name', 'sku', 'type'])
             ->where('status', '!=', 'archived')
             ->orderBy('name')
@@ -412,7 +413,7 @@ class PurchaseOrderService extends Service
                 ]);
             }
 
-            $product = DB::table('products')->where('id', $productId)->first();
+            $product = TenantQuery::constrain(DB::table('products'), 'products')->where('id', $productId)->first();
 
             if ($product === null || $product->status === 'archived') {
                 throw ValidationException::withMessages([

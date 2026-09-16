@@ -7,6 +7,7 @@ use App\Core\Contracts\StockAvailability;
 use App\Core\Events\PosSaleCancelled;
 use App\Core\Events\PosSaleCompleted;
 use App\Core\Support\Service;
+use App\Core\Tenant\TenantQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -92,12 +93,13 @@ class PosSaleService extends Service
      */
     public function categoryOptions(): array
     {
-        return DB::table('categories')
+        return TenantQuery::constrain(DB::table('categories'), 'categories')
             ->whereExists(function ($query) {
                 $query->selectRaw('1')
                     ->from('products')
                     ->whereColumn('products.primary_category_id', 'categories.id')
                     ->whereIn('products.status', ['active', 'approved']);
+                TenantQuery::constrain($query, 'products');
             })
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -124,7 +126,7 @@ class PosSaleService extends Service
      */
     public function searchableProducts(?string $search = null, int $limit = 30, ?int $categoryId = null): array
     {
-        $query = DB::table('products')
+        $query = TenantQuery::constrain(DB::table('products'), 'products')
             ->where('status', '!=', 'archived')
             ->whereIn('status', ['active', 'approved'])
             ->orderBy('name')
@@ -189,7 +191,7 @@ class PosSaleService extends Service
             return null;
         }
 
-        $row = DB::table('products')
+        $row = TenantQuery::constrain(DB::table('products'), 'products')
             ->where('status', '!=', 'archived')
             ->whereIn('status', ['active', 'approved'])
             ->where(function ($inner) use ($code) {
@@ -511,7 +513,7 @@ class PosSaleService extends Service
                 ]);
             }
 
-            $product = DB::table('products')->where('id', $productId)->first();
+            $product = TenantQuery::constrain(DB::table('products'), 'products')->where('id', $productId)->first();
 
             if ($product === null || $product->status === 'archived') {
                 throw ValidationException::withMessages([

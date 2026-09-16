@@ -2,11 +2,14 @@
 
 namespace Modules\Marketing\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Marketing\Enums\DiscountType;
 
 class MarketingPromotion extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'marketing_promotions';
 
     protected $fillable = [

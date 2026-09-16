@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,8 @@ use Modules\Accounting\Enums\JournalStatus;
 
 class JournalEntry extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'number',
         'entry_date',

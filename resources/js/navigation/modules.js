@@ -415,6 +415,7 @@ export const settingsModule = {
         { label: 'General', path: '/admin/settings/general' },
         { label: 'Plans & modules', path: '/admin/billing/plans' },
         { label: 'Shop complexity', path: '/admin/billing/settings' },
+        { label: 'Platform tenants', path: '/platform/tenants' },
         group('Business', [
             { label: 'Company', path: '/admin/settings/business/company' },
             { label: 'Branches', path: '/admin/settings/business/branches' },

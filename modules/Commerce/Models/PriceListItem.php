@@ -2,11 +2,14 @@
 
 namespace Modules\Commerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PriceListItem extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'price_list_id',
         'product_id',

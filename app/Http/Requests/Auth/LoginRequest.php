@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Core\Tenant\TenantContext;
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -21,7 +24,7 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * Get the validation rules for the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -42,13 +45,34 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $email = (string) $this->string('email');
+        $password = (string) $this->string('password');
+        $tenants = app(TenantContext::class);
+
+        $query = User::query()->where('email', $email);
+
+        if ($tenants->isPlatformRequest()) {
+            $query->where('is_platform_admin', true)->whereNull('tenant_id');
+        } elseif ($tenants->id() !== null) {
+            $query->where(function ($inner) use ($tenants): void {
+                $inner->where('tenant_id', $tenants->id())
+                    ->orWhere(function ($platform) {
+                        $platform->where('is_platform_admin', true)->whereNull('tenant_id');
+                    });
+            });
+        }
+
+        $user = $query->first();
+
+        if ($user === null || ! Hash::check($password, $user->password)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);
         }
+
+        Auth::login($user, $this->boolean('remember'));
 
         RateLimiter::clear($this->throttleKey());
     }

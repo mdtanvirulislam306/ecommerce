@@ -2,10 +2,13 @@
 
 namespace Modules\Ecommerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class EcommerceCoupon extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'code',
         'name',

@@ -2,10 +2,13 @@
 
 namespace Modules\Marketing\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class LoyaltySetting extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'marketing_loyalty_settings';
 
     protected $fillable = [

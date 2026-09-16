@@ -2,10 +2,13 @@
 
 namespace Modules\Ecommerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class CmsMenu extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'name',
         'location',

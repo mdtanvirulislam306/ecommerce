@@ -2,12 +2,15 @@
 
 namespace Modules\Marketing\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Crm\Models\CustomerSegment;
 
 class Segment extends Model
 {
+    use BelongsToTenant;
+
     protected $table = 'marketing_segments';
 
     protected $fillable = [

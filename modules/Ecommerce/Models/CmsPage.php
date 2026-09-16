@@ -2,11 +2,14 @@
 
 namespace Modules\Ecommerce\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CmsPage extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'title',
         'slug',

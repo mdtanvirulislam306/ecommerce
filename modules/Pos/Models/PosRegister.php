@@ -2,12 +2,15 @@
 
 namespace Modules\Pos\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PosRegister extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'name',
         'code',

@@ -1,7 +1,10 @@
 <?php
 
 use App\Core\Module\Middleware\EnsureModuleEnabled;
+use App\Http\Middleware\EnsurePlatformAdmin;
+use App\Http\Middleware\EnsureTenantActive;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\ResolveTenantFromHost;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,13 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(prepend: [
+            ResolveTenantFromHost::class,
+        ]);
+
         $middleware->web(append: [
+            EnsureTenantActive::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         $middleware->alias([
             'module' => EnsureModuleEnabled::class,
+            'platform' => EnsurePlatformAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

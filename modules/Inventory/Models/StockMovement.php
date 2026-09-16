@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Models;
 
+use App\Core\Support\BelongsToTenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,8 @@ use Modules\Inventory\Enums\StockMovementType;
 
 class StockMovement extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'warehouse_id',
         'product_id',

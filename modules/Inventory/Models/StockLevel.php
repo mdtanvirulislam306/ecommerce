@@ -2,11 +2,14 @@
 
 namespace Modules\Inventory\Models;
 
+use App\Core\Support\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StockLevel extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'warehouse_id',
         'product_id',

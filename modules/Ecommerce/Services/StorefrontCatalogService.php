@@ -6,6 +6,7 @@ use App\Core\Contracts\PriceResolver;
 use App\Core\Contracts\StockAvailability;
 use App\Core\Module\ModuleManager;
 use App\Core\Support\Service;
+use App\Core\Tenant\TenantQuery;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -142,7 +143,7 @@ class StorefrontCatalogService extends Service
             return [];
         }
 
-        $rows = DB::table('categories')
+        $rows = TenantQuery::constrain(DB::table('categories'), 'categories')
             ->where('is_active', true)
             ->whereNull('parent_id')
             ->orderBy('sort_order')
@@ -164,7 +165,7 @@ class StorefrontCatalogService extends Service
             return [];
         }
 
-        return DB::table('categories')
+        return TenantQuery::constrain(DB::table('categories'), 'categories')
             ->where('is_active', true)
             ->where('parent_id', $parentId)
             ->orderBy('sort_order')
@@ -192,7 +193,7 @@ class StorefrontCatalogService extends Service
             return null;
         }
 
-        $row = DB::table('categories')
+        $row = TenantQuery::constrain(DB::table('categories'), 'categories')
             ->where('slug', $slug)
             ->where('is_active', true)
             ->first(['id', 'name', 'slug', 'parent_id', 'image_path']);
@@ -328,20 +329,22 @@ class StorefrontCatalogService extends Service
      */
     public function productBySlug(string $slug): array
     {
-        $product = DB::table('products')
-            ->leftJoin('product_storefront_settings as storefront', 'products.id', '=', 'storefront.product_id')
-            ->where('products.slug', $slug)
-            ->where('products.publication_status', 'published')
-            ->where('products.status', '!=', 'archived')
-            ->first([
-                'products.id',
-                'products.name',
-                'products.slug',
-                'products.sku',
-                'products.type',
-                'products.description',
-                DB::raw('COALESCE(storefront.is_featured, 0) as is_featured'),
-            ]);
+        $product = TenantQuery::constrain(
+            DB::table('products')
+                ->leftJoin('product_storefront_settings as storefront', 'products.id', '=', 'storefront.product_id')
+                ->where('products.slug', $slug)
+                ->where('products.publication_status', 'published')
+                ->where('products.status', '!=', 'archived'),
+            'products',
+        )->first([
+            'products.id',
+            'products.name',
+            'products.slug',
+            'products.sku',
+            'products.type',
+            'products.description',
+            DB::raw('COALESCE(storefront.is_featured, 0) as is_featured'),
+        ]);
 
         if ($product === null) {
             throw new NotFoundHttpException('Product not found.');
@@ -506,7 +509,7 @@ class StorefrontCatalogService extends Service
             return $this->activeChildrenByParent;
         }
 
-        foreach (DB::table('categories')->where('is_active', true)->get(['id', 'parent_id']) as $row) {
+        foreach (TenantQuery::constrain(DB::table('categories'), 'categories')->where('is_active', true)->get(['id', 'parent_id']) as $row) {
             if ($row->parent_id === null) {
                 continue;
             }
@@ -564,10 +567,13 @@ class StorefrontCatalogService extends Service
 
     private function baseProductQuery()
     {
-        return DB::table('products')
-            ->leftJoin('product_storefront_settings as storefront', 'products.id', '=', 'storefront.product_id')
-            ->where('products.publication_status', 'published')
-            ->where('products.status', '!=', 'archived');
+        return TenantQuery::constrain(
+            DB::table('products')
+                ->leftJoin('product_storefront_settings as storefront', 'products.id', '=', 'storefront.product_id')
+                ->where('products.publication_status', 'published')
+                ->where('products.status', '!=', 'archived'),
+            'products',
+        );
     }
 
     /**
