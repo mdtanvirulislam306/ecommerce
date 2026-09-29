@@ -8,7 +8,7 @@ class UpdatePlanRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return (bool) $this->user()?->is_platform_admin;
     }
 
     /**
