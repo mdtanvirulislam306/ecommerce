@@ -232,6 +232,105 @@ class PlanControllerTest extends TestCase
             );
     }
 
+    public function test_tenant_owner_reads_the_subscription_settings_page(): void
+    {
+        $this->seedPlans();
+        $tenant = $this->shop('plan-settings');
+        $owner = $this->tenantUser($tenant, null, null);
+        $free = $this->plan(PlanCode::Free);
+        $this->subscribe($tenant, $free, '2099-01-01', 'Manual invoice 42');
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/settings/subscription'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Settings/Subscription/Index', false)
+                ->where('subscription.plan_code', PlanCode::Free->value)
+                ->where('subscription.plan_name', 'Free')
+                ->where('subscription.ends_at', '2099-01-01')
+                ->where('subscription.payment_note', 'Manual invoice 42')
+            );
+    }
+
+    public function test_tenant_without_a_subscription_sees_an_empty_plan_page(): void
+    {
+        $this->seedPlans();
+        $tenant = $this->shop('no-plan');
+        $owner = $this->tenantUser($tenant, null, null);
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/settings/subscription'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Settings/Subscription/Index', false)
+                ->where('subscription', null)
+            );
+    }
+
+    public function test_tenant_owner_reads_enabled_and_locked_modules_on_the_modules_page(): void
+    {
+        $this->seedPlans();
+        $tenant = $this->shop('modules-read');
+        $owner = $this->tenantUser($tenant, null, null);
+        $free = $this->plan(PlanCode::Free);
+        $this->subscribe($tenant, $free);
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/settings/modules'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Settings/Modules/Index', false)
+                ->where('modules', function ($modules): bool {
+                    $rows = collect($modules);
+                    $sales = $rows->firstWhere('code', 'sales');
+                    $crm = $rows->firstWhere('code', 'crm');
+
+                    return is_array($sales)
+                        && $sales['name'] === 'Sales'
+                        && $sales['enabled'] === true
+                        && is_array($crm)
+                        && $crm['name'] === 'Crm'
+                        && $crm['enabled'] === false;
+                })
+            );
+    }
+
+    public function test_locked_crm_module_renders_the_upgrade_page(): void
+    {
+        $this->seedPlans();
+        $tenant = $this->shop('crm-locked');
+        $owner = $this->tenantUser($tenant, null, null);
+        $free = $this->plan(PlanCode::Free);
+        $this->subscribe($tenant, $free);
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/crm/overview'))
+            ->assertForbidden()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Billing/Upgrade', false)
+                ->where('module.code', 'crm')
+                ->where('module.name', 'Crm')
+            );
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function readOnlyPlanPages(): array
+    {
+        return [
+            'subscription' => ['settings.subscription'],
+            'modules' => ['settings.modules'],
+        ];
+    }
+
+    #[DataProvider('readOnlyPlanPages')]
+    public function test_guest_is_redirected_from_read_only_plan_pages(string $routeName): void
+    {
+        $this->get(route($routeName))
+            ->assertRedirect(route('login'));
+    }
+
     public function test_guest_is_redirected_from_plan_update(): void
     {
         $this->seedPlans();

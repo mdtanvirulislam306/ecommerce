@@ -59,6 +59,10 @@ const filterNavChildren = (mod) => {
                 return null;
             }
 
+            if (path === '/admin/billing/plans' && !isPlatformAdmin.value) {
+                return null;
+            }
+
             if (mod.key === 'commerce' && !flags.multi_price) {
                 if (path.includes('/pricing/price-lists') || path.includes('/pricing/customer-groups') || path.includes('/pricing/quantity') || path.includes('/pricing/history')) {
                     return null;

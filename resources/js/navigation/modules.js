@@ -425,8 +425,8 @@ export const settingsModule = {
         { label: 'Warehouses', path: '/admin/settings/warehouses' },
         { label: 'Users', path: '/admin/settings/users' },
         { label: 'Roles & Permissions', path: '/admin/settings/roles' },
-        { label: 'Module Manager', path: '/admin/settings/modules' },
-        { label: 'Subscription & Billing', path: '/admin/settings/subscription' },
+        { label: 'Modules', path: '/admin/settings/modules' },
+        { label: 'Your plan', path: '/admin/settings/subscription' },
         { label: 'Numbering', path: '/admin/settings/numbering' },
         { label: 'Document Templates', path: '/admin/settings/document-templates' },
         { label: 'Tax Settings', path: '/admin/settings/tax' },
@@ -441,6 +441,35 @@ export const settingsModule = {
         { label: 'System Settings', path: '/admin/settings/system' },
     ],
 };
+
+/**
+ * Entry paths that run the module gate. A locked module renders the Upgrade page.
+ *
+ * @type {Record<string, string>}
+ */
+export const moduleGatePaths = {
+    catalog: '/admin/products/overview',
+    crm: '/admin/crm/overview',
+    inventory: '/admin/inventory/overview',
+    purchase: '/admin/purchase/overview',
+    sales: '/admin/sales/overview',
+    pos: '/admin/pos/registers',
+    ecommerce: '/admin/ecommerce/overview',
+    accounting: '/admin/accounting/overview',
+    hrm: '/admin/hrm/overview',
+    reports: '/admin/reports/overview',
+    marketing: '/admin/marketing/overview',
+    commerce: '/admin/commerce/overview',
+    support: '/admin/support/overview',
+    workflow: '/admin/workflow/overview',
+    tasks: '/admin/tasks/my-tasks',
+    notifications: '/admin/notifications/center',
+    files: '/admin/files/media-library',
+};
+
+export function moduleGatePath(code) {
+    return moduleGatePaths[code] ?? null;
+}
 
 export const allModules = [...primaryModules, ...moreModules, settingsModule];
 
