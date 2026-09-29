@@ -202,7 +202,6 @@ class SetupChecklistTest extends TestCase
     public function test_sales_manager_dashboard_omits_the_setup_checklist(): void
     {
         [$tenant, $owner] = $this->provisionShop('sales-shop');
-        $this->saveShopName($owner, $tenant, 'Corner Shop');
 
         app(TenantContext::class)->set($tenant);
         $role = Role::query()->create([
@@ -210,6 +209,8 @@ class SetupChecklistTest extends TestCase
             'slug' => 'sales-manager',
         ]);
         $owner->roles()->attach($role->id);
+
+        $this->saveShopName($owner, $tenant, 'Corner Shop');
 
         $this->actingAs($owner)
             ->get($this->shopUrl($tenant, '/admin/dashboard'))

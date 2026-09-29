@@ -112,12 +112,24 @@ final class SetupChecklistService extends Service
         ];
     }
 
+    /**
+     * Text settings are stored raw, except nulls, which SettingValue::setValue JSON-encodes.
+     * Decode with the same rule as SettingValue::groupValues() before checking for text.
+     */
     private function isFilled(mixed $value): bool
     {
-        if (! is_string($value)) {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $value = $decoded;
+            }
+        }
+
+        if (! is_string($value) && ! is_numeric($value)) {
             return false;
         }
 
-        return trim($value) !== '';
+        return trim((string) $value) !== '';
     }
 }
