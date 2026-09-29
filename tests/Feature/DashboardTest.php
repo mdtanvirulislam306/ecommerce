@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Core\Tenant\TenantContext;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
+use App\Models\TenantModuleOverride;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -84,13 +85,15 @@ class DashboardTest extends TestCase
         });
     }
 
-    public function test_owner_dashboard_counts_confirmed_revenue_and_low_stock(): void
+    public function test_owner_dashboard_excludes_cancelled_orders_from_orders_and_revenue(): void
     {
         $tenant = $this->defaultTenant();
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
 
-        $this->makeOrder($tenant, 'SO-100', 'confirmed', '200.00', 'Asha Rahman', now()->subHour());
-        $this->makeOrder($tenant, 'SO-DRAFT', 'draft', '75.00', 'Draft Buyer', now());
+        $this->makeOrder($tenant, 'SO-100', 'confirmed', '200.00', 'Asha Rahman', now()->subHours(3));
+        $this->makeOrder($tenant, 'SO-DRAFT', 'draft', '75.00', 'Draft Buyer', now()->subHours(2));
+        $this->makeOrder($tenant, 'SO-PEND', 'pending', '40.00', 'Pending Buyer', now()->subHour());
+        $this->makeOrder($tenant, 'SO-CANCEL', 'cancelled', '500.00', 'Cancelled Buyer', now());
         $this->makeStock($tenant, 'Green Tea', 'TEA-1', '3', '10');
         $this->makeStock($tenant, 'Coffee Beans', 'COF-1', '0', '5');
         $this->makeStock($tenant, 'Rice', 'RICE-1', '40', '5');
@@ -100,16 +103,16 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->where('kpis.revenue', '200.00')
-            ->where('kpis.orders', 2)
-            ->where('kpis.pending_orders', 0)
+            ->where('kpis.orders', 3)
+            ->where('kpis.pending_orders', 1)
             ->where('kpis.low_stock', 1)
             ->where('kpis.out_of_stock', 1)
-            ->has('recentOrders', 2)
-            ->where('recentOrders.0.number', 'SO-DRAFT')
-            ->where('recentOrders.0.customer_name', 'Draft Buyer')
-            ->where('recentOrders.0.status', 'draft')
-            ->where('recentOrders.1.number', 'SO-100')
-            ->where('recentOrders.1.status', 'confirmed')
+            ->has('recentOrders', 4)
+            ->where('recentOrders.0.number', 'SO-CANCEL')
+            ->where('recentOrders.0.status', 'cancelled')
+            ->where('recentOrders', fn ($orders) => collect($orders)->contains('number', 'SO-DRAFT')
+                && collect($orders)->contains('number', 'SO-PEND')
+                && collect($orders)->contains('number', 'SO-100'))
             ->has('lowStockItems', 1)
             ->where('lowStockItems.0.product_name', 'Green Tea')
             ->where('lowStockItems.0.sku', 'TEA-1')
@@ -117,6 +120,31 @@ class DashboardTest extends TestCase
             ->where('lowStockItems.0.reorder_point', '10')
             ->where('lowStockItems', fn ($items) => ! collect($items)->contains('product_name', 'Coffee Beans')
                 && ! collect($items)->contains('product_name', 'Rice'))
+        );
+    }
+
+    public function test_owner_dashboard_hides_stock_when_inventory_is_disabled(): void
+    {
+        $tenant = $this->defaultTenant();
+        TenantModuleOverride::query()->create([
+            'tenant_id' => $tenant->id,
+            'module_code' => 'inventory',
+            'enabled' => false,
+        ]);
+
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->makeStock($tenant, 'Hidden Tea', 'TEA-HIDDEN', '1', '5');
+
+        $response = $this->actingAs($user)->get($this->dashboardUrl($tenant));
+
+        $response->assertOk();
+        $response->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('modulesAvailable.inventory', false)
+            ->where('kpis.low_stock', 0)
+            ->where('kpis.out_of_stock', 0)
+            ->has('lowStockItems', 0)
+            ->where('quickLinks', fn ($links) => ! collect($links)->contains('route', 'inventory.low-stock.index')
+                && ! collect($links)->contains('route', 'inventory.overview'))
         );
     }
 

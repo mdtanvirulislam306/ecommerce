@@ -42,7 +42,7 @@ const kpiCards = computed(() => [
         key: 'orders',
         label: 'Orders',
         value: props.kpis.orders,
-        hint: `${props.kpis.pending_orders} pending`,
+        hint: `${props.kpis.pending_orders} pending · excludes cancelled`,
         route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
         query: {},
         accent: 'border-l-brand-teal',
@@ -51,8 +51,10 @@ const kpiCards = computed(() => [
     {
         key: 'low_stock',
         label: 'Low stock',
-        value: props.kpis.low_stock,
-        hint: `${props.kpis.out_of_stock} out of stock`,
+        value: props.modulesAvailable.inventory ? props.kpis.low_stock : '—',
+        hint: props.modulesAvailable.inventory
+            ? `${props.kpis.out_of_stock} out of stock`
+            : 'Inventory is off',
         route: props.modulesAvailable.inventory ? 'inventory.low-stock.index' : null,
         query: {},
         accent: 'border-l-amber-500',
@@ -174,7 +176,9 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                     <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                         <div>
                             <h2 class="text-sm font-semibold text-brand-navy">Low stock</h2>
-                            <p class="text-xs text-gray-400">On hand still above zero</p>
+                            <p class="text-xs text-gray-400">
+                                {{ modulesAvailable.inventory ? 'On hand still above zero' : 'Inventory is off' }}
+                            </p>
                         </div>
                         <Link
                             v-if="modulesAvailable.inventory"
@@ -186,7 +190,7 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full">
-                            <thead class="border-b border-gray-200 bg-gray-50/90">
+                            <thead v-if="modulesAvailable.inventory" class="border-b border-gray-200 bg-gray-50/90">
                                 <tr class="admin-data-table__head">
                                     <th>Product</th>
                                     <th>On hand</th>
@@ -204,11 +208,17 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                                     <td class="admin-data-table__cell tabular-nums text-amber-700">{{ item.on_hand }}</td>
                                     <td class="admin-data-table__cell tabular-nums text-gray-500">{{ item.reorder_point }}</td>
                                 </tr>
-                                <tr v-if="!lowStockItems.length">
+                                <tr v-if="!modulesAvailable.inventory">
+                                    <td colspan="3" class="px-5 py-12 text-center">
+                                        <p class="text-sm text-gray-500">Inventory is not enabled for this shop.</p>
+                                        <p class="mt-1 text-xs text-gray-400">Stock levels are unavailable.</p>
+                                    </td>
+                                </tr>
+                                <tr v-else-if="!lowStockItems.length">
                                     <td colspan="3" class="px-5 py-12 text-center">
                                         <p class="text-sm text-gray-500">No items are below their reorder point.</p>
                                         <Link
-                                            v-if="modulesAvailable.inventory && kpis.out_of_stock > 0"
+                                            v-if="kpis.out_of_stock > 0"
                                             :href="route('inventory.out-of-stock.index')"
                                             class="mt-3 inline-block text-sm font-medium text-brand-orange hover:underline"
                                         >

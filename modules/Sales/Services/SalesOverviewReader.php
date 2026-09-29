@@ -11,13 +11,16 @@ final class SalesOverviewReader implements SalesOverview
 {
     public function __construct(private readonly SalesOrderService $orders) {}
 
+    /**
+     * Open orders are draft, pending, and confirmed. Cancelled stays on the Sales overview card only.
+     */
     public function snapshot(): array
     {
         $stats = $this->orders->overviewStats();
 
         return [
             ...$stats,
-            'orders' => $stats['draft'] + $stats['pending'] + $stats['confirmed'] + $stats['cancelled'],
+            'orders' => $stats['draft'] + $stats['pending'] + $stats['confirmed'],
         ];
     }
 

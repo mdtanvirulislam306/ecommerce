@@ -5,7 +5,8 @@ namespace App\Core\Contracts;
 interface SalesOverview
 {
     /**
-     * Confirmed revenue and order counts, using the same rules as the Sales overview.
+     * Confirmed revenue plus open order counts from the Sales overview.
+     * `orders` is draft, pending, and confirmed. Cancelled orders are excluded.
      *
      * @return array{
      *     draft: int,
