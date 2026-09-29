@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StorePriceListRequest extends FormRequest
@@ -27,7 +28,7 @@ class StorePriceListRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:price_lists,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('price_lists', 'code')],
             'description' => ['nullable', 'string'],
             'currency' => ['nullable', 'string', 'size:3'],
             'is_active' => ['boolean'],

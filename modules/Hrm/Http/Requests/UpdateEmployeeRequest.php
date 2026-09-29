@@ -2,8 +2,8 @@
 
 namespace Modules\Hrm\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Hrm\Models\Employee;
 
 class UpdateEmployeeRequest extends FormRequest
@@ -36,7 +36,7 @@ class UpdateEmployeeRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('hrm_employees', 'code')->ignore($employee->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('hrm_employees', 'code')->ignore($employee->id)],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'department' => ['nullable', 'string', 'max:120'],

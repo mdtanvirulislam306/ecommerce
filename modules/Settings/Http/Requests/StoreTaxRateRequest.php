@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreTaxRateRequest extends FormRequest
@@ -16,7 +17,7 @@ class StoreTaxRateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:tax_rates,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('tax_rates', 'code')],
             'rate' => ['required', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
         ];

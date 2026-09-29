@@ -22,6 +22,13 @@ const statusMeta = {
     cancelled: { class: 'bg-red-50 text-red-700' },
 };
 
+const paymentStatusMeta = {
+    unpaid: 'text-gray-500',
+    pending: 'text-amber-700',
+    paid: 'text-emerald-700',
+    failed: 'text-red-700',
+};
+
 const visitIndex = () => {
     router.get(
         route('ecommerce.online-orders.index'),
@@ -66,6 +73,7 @@ watch(status, visitIndex);
                             <th>Customer</th>
                             <th>Items</th>
                             <th>Status</th>
+                            <th>Payment</th>
                             <th>Total</th>
                             <th>Created</th>
                         </tr>
@@ -88,12 +96,18 @@ watch(status, visitIndex);
                                 </span>
                             </td>
                             <td class="admin-data-table__cell">
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium" :class="paymentStatusMeta[order.payment_status]">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-current" />
+                                    {{ order.payment_status_label }}
+                                </span>
+                            </td>
+                            <td class="admin-data-table__cell">
                                 {{ order.currency }} {{ Number(order.grand_total).toFixed(2) }}
                             </td>
                             <td class="admin-data-table__cell text-gray-500">{{ formatDateTime(order.created_at) }}</td>
                         </tr>
                         <tr v-if="!orders.data.length">
-                            <td colspan="6" class="px-5 py-12 text-center text-sm text-gray-500">No online orders yet.</td>
+                            <td colspan="7" class="px-5 py-12 text-center text-sm text-gray-500">No online orders yet.</td>
                         </tr>
                     </tbody>
                 </table>

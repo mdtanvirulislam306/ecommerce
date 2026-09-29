@@ -1,11 +1,11 @@
 <script setup>
-import AdminLayout from '@/Layouts/AdminLayout.vue';
+import PlatformShell from '../../Components/PlatformShell.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -20,7 +20,7 @@ const form = useForm({
     owner_name: '',
     owner_email: '',
     owner_password: '',
-    plan_id: props.plans[0]?.id ?? null,
+    plan_id: props.plans.find((plan) => plan.is_default)?.id ?? props.plans[0]?.id ?? null,
     payment_note: '',
     ends_at: '',
     notes: '',
@@ -34,10 +34,9 @@ const submit = () => form.post(route('platform.tenants.store'));
 </script>
 
 <template>
-    <Head title="Create Tenant" />
-    <AdminLayout title="Platform · Create Tenant">
-        <div class="mb-5">
-            <Link :href="route('platform.tenants.index')" class="text-sm font-medium text-brand-navy hover:text-brand-orange">← Tenants</Link>
+    <PlatformShell title="New shop">
+        <div>
+            <Link :href="route('platform.tenants.index')" class="text-sm font-medium text-brand-navy hover:text-brand-orange">← All shops</Link>
         </div>
 
         <form class="mx-auto max-w-3xl space-y-5" @submit.prevent="submit">
@@ -91,7 +90,7 @@ const submit = () => form.post(route('platform.tenants.store'));
                     <InputLabel value="Plan" />
                     <select v-model="form.plan_id" class="mt-1 block w-full rounded-lg border-gray-300 text-sm">
                         <option v-for="plan in plans" :key="plan.id" :value="plan.id">
-                            {{ plan.name }} ({{ plan.code }})
+                            {{ plan.name }} ({{ plan.code }}){{ plan.is_default ? ' · default' : '' }}
                         </option>
                     </select>
                 </div>
@@ -122,5 +121,5 @@ const submit = () => form.post(route('platform.tenants.store'));
                 <Link :href="route('platform.tenants.index')"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
             </div>
         </form>
-    </AdminLayout>
+    </PlatformShell>
 </template>

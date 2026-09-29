@@ -9,6 +9,7 @@ use App\Models\TenantModuleOverride;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Modules\Billing\Enums\PlanCode;
 use Modules\Billing\Enums\SubscriptionStatus;
 use Modules\Billing\Models\Plan;
@@ -106,6 +107,16 @@ class PlanService extends Service
         }
 
         $this->forgetEnabledCache();
+
+        if (Schema::hasColumn('subscriptions', 'tenant_id')) {
+            Subscription::query()
+                ->withoutGlobalScopes()
+                ->where('plan_id', $plan->id)
+                ->whereNotNull('tenant_id')
+                ->distinct()
+                ->pluck('tenant_id')
+                ->each(fn ($tenantId) => $this->forgetEnabledCache((int) $tenantId));
+        }
     }
 
     /**
@@ -153,6 +164,107 @@ class PlanService extends Service
         }
 
         return $plan->fresh('modules');
+    }
+
+    /**
+     * @param  array{name: string, code: string, description?: string|null, price_monthly: int, is_active?: bool, is_default?: bool, module_codes?: list<string>}  $data
+     */
+    public function create(array $data): Plan
+    {
+        return DB::transaction(function () use ($data) {
+            $plan = Plan::query()->create([
+                'name' => $data['name'],
+                'code' => $data['code'],
+                'description' => $data['description'] ?? null,
+                'price_monthly' => $data['price_monthly'],
+                'currency' => 'BDT',
+                'is_active' => $data['is_active'] ?? true,
+                'is_default' => false,
+                'sort_order' => (int) Plan::query()->max('sort_order') + 1,
+            ]);
+
+            $this->syncPlanModules($plan, $data['module_codes'] ?? []);
+
+            if ($data['is_default'] ?? false) {
+                $this->makeDefault($plan);
+            }
+
+            return $plan->fresh('modules');
+        });
+    }
+
+    /**
+     * The default plan is what new shops start on, so it is always kept on offer.
+     */
+    public function makeDefault(Plan $plan): void
+    {
+        DB::transaction(function () use ($plan) {
+            Plan::query()->whereKeyNot($plan->id)->update(['is_default' => false]);
+            $plan->update(['is_default' => true, 'is_active' => true]);
+        });
+    }
+
+    public function defaultPlan(): ?Plan
+    {
+        return Plan::query()->where('is_default', true)->where('is_active', true)->first();
+    }
+
+    /**
+     * Plans a shop has ever been billed on are kept for its subscription history; hide them instead.
+     *
+     * @throws ValidationException
+     */
+    public function delete(Plan $plan): void
+    {
+        if ($plan->is_default) {
+            throw ValidationException::withMessages([
+                'plan' => "{$plan->name} is the plan new shops start on. Make another plan the default before deleting it.",
+            ]);
+        }
+
+        if (Subscription::query()->withoutGlobalScopes()->where('plan_id', $plan->id)->exists()) {
+            throw ValidationException::withMessages([
+                'plan' => "Shops have been billed on {$plan->name}, so it stays for their history. Hide it to stop offering it.",
+            ]);
+        }
+
+        $plan->delete();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, code: string, description: string|null, price_monthly: int, currency: string, is_active: bool, is_default: bool, module_codes: list<string>, shops: int, can_delete: bool}>
+     */
+    public function listForPlatform(): array
+    {
+        $currentShops = Subscription::query()
+            ->withoutGlobalScopes()
+            ->where('status', SubscriptionStatus::Active)
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->selectRaw('plan_id, count(distinct tenant_id) as aggregate')
+            ->groupBy('plan_id')
+            ->pluck('aggregate', 'plan_id');
+
+        $everBilled = Subscription::query()->withoutGlobalScopes()->distinct()->pluck('plan_id')->flip();
+
+        return Plan::query()
+            ->with('modules')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Plan $plan) => [
+                'id' => $plan->id,
+                'name' => $plan->name,
+                'code' => $plan->code,
+                'description' => $plan->description,
+                'price_monthly' => $plan->price_monthly,
+                'currency' => $plan->currency,
+                'is_active' => $plan->is_active,
+                'is_default' => $plan->is_default,
+                'module_codes' => $plan->modules->pluck('module_code')->values()->all(),
+                'shops' => (int) ($currentShops[$plan->id] ?? 0),
+                'can_delete' => ! $plan->is_default && ! $everBilled->has($plan->id),
+            ])
+            ->all();
     }
 
     public function activeSubscription(?int $tenantId = null): ?Subscription

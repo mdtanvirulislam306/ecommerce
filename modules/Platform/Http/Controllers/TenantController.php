@@ -9,6 +9,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Platform\Http\Requests\ProvisionTenantRequest;
 use Modules\Platform\Http\Requests\UpdateTenantRequest;
+use Modules\Platform\Services\ImpersonationService;
 use Modules\Platform\Services\TenantProvisionService;
 
 class TenantController extends Controller
@@ -34,12 +35,14 @@ class TenantController extends Controller
             ->with('success', 'Tenant provisioned successfully.');
     }
 
-    public function show(Tenant $tenant, TenantProvisionService $tenants): Response
+    public function show(Tenant $tenant, TenantProvisionService $tenants, ImpersonationService $impersonation): Response
     {
         $tenant->load(['domains', 'primaryDomain']);
 
         return Inertia::render('Platform/Tenants/Show', [
             'tenant' => $tenants->formatDetail($tenant),
+            'team' => $tenants->team($tenant),
+            'accessHistory' => $impersonation->history($tenant),
         ]);
     }
 

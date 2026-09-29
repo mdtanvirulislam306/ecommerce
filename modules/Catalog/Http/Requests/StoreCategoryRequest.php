@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,7 +31,7 @@ class StoreCategoryRequest extends FormRequest
         return [
             'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:categories,slug'],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('categories', 'slug')],
             'description' => ['nullable', 'string'],
             'media_library_id' => [
                 'nullable',

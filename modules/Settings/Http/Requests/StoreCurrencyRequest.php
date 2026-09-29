@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCurrencyRequest extends FormRequest
@@ -16,7 +17,7 @@ class StoreCurrencyRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:10', 'unique:currencies,code'],
+            'code' => ['required', 'string', 'max:10', TenantRule::unique('currencies', 'code')],
             'symbol' => ['nullable', 'string', 'max:10'],
             'exchange_rate' => ['required', 'numeric', 'min:0'],
             'is_default' => ['boolean'],

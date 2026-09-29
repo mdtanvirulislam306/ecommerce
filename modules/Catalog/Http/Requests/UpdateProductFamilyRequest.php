@@ -2,8 +2,8 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Catalog\Models\ProductFamily;
 
 class UpdateProductFamilyRequest extends FormRequest
@@ -30,7 +30,7 @@ class UpdateProductFamilyRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('product_families', 'slug')->ignore($family->id)],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('product_families', 'slug')->ignore($family->id)],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];

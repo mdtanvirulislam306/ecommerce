@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Core\Module\ModuleManager;
+use App\Core\Tenant\TenantContext;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -196,7 +197,10 @@ class CrmCustomerLinkTest extends TestCase
 
     private function createPricedProduct(bool $published = false, bool $withStock = false): int
     {
+        $tenantId = app(TenantContext::class)->id();
+
         $productId = (int) DB::table('products')->insertGetId([
+            'tenant_id' => $tenantId,
             'type' => 'simple',
             'name' => 'Link Tea',
             'slug' => 'link-tea-'.uniqid(),
@@ -208,6 +212,7 @@ class CrmCustomerLinkTest extends TestCase
         ]);
 
         $listId = (int) DB::table('price_lists')->insertGetId([
+            'tenant_id' => $tenantId,
             'name' => 'Default',
             'code' => 'DEF-'.uniqid(),
             'currency' => 'BDT',
@@ -219,6 +224,7 @@ class CrmCustomerLinkTest extends TestCase
         ]);
 
         DB::table('price_list_items')->insert([
+            'tenant_id' => $tenantId,
             'price_list_id' => $listId,
             'product_id' => $productId,
             'price' => 100,
@@ -229,6 +235,7 @@ class CrmCustomerLinkTest extends TestCase
 
         if ($withStock) {
             $warehouseId = (int) DB::table('warehouses')->insertGetId([
+                'tenant_id' => $tenantId,
                 'name' => 'Main',
                 'code' => 'WH-'.uniqid(),
                 'is_active' => true,
@@ -239,6 +246,7 @@ class CrmCustomerLinkTest extends TestCase
             ]);
 
             DB::table('stock_levels')->insert([
+                'tenant_id' => $tenantId,
                 'warehouse_id' => $warehouseId,
                 'product_id' => $productId,
                 'on_hand' => 50,

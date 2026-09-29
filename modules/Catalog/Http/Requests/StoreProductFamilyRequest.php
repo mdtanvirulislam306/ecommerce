@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProductFamilyRequest extends FormRequest
@@ -25,7 +26,7 @@ class StoreProductFamilyRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:product_families,slug'],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('product_families', 'slug')],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];

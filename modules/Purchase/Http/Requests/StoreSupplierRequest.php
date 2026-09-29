@@ -2,6 +2,7 @@
 
 namespace Modules\Purchase\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSupplierRequest extends FormRequest
@@ -30,7 +31,7 @@ class StoreSupplierRequest extends FormRequest
         return [
             'supplier_group_id' => ['nullable', 'integer', 'exists:supplier_groups,id'],
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:suppliers,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('suppliers', 'code')],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'address' => ['nullable', 'string', 'max:500'],

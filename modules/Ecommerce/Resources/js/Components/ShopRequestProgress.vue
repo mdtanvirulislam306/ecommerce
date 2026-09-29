@@ -1,5 +1,5 @@
 <script setup>
-import { useShopUi } from '@/Composables/useShopUi';
+import { useShopUi } from '@/composables/useShopUi';
 import { router } from '@inertiajs/vue3';
 import { onMounted, onUnmounted } from 'vue';
 

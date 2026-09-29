@@ -11,6 +11,7 @@ use Modules\Ecommerce\Http\Controllers\EcommercePromotionController;
 use Modules\Ecommerce\Http\Controllers\EcommerceReportController;
 use Modules\Ecommerce\Http\Controllers\OnlineOrderController;
 use Modules\Ecommerce\Http\Controllers\OnlineProductController;
+use Modules\Ecommerce\Http\Controllers\OrderNotificationSettingsController;
 use Modules\Ecommerce\Http\Controllers\ProductReviewController;
 use Modules\Ecommerce\Http\Controllers\ShippingSettingsController;
 use Modules\Ecommerce\Http\Controllers\StoreDashboardController;
@@ -125,6 +126,14 @@ Route::prefix('shipping')->name('shipping.')->group(function () {
 Route::prefix('checkout')->name('checkout.')->group(function () {
     Route::get('/', [CheckoutSettingsController::class, 'index'])->name('index');
     Route::put('/', [CheckoutSettingsController::class, 'update'])->name('update');
+});
+
+Route::prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [OrderNotificationSettingsController::class, 'index'])->name('index');
+    Route::put('/', [OrderNotificationSettingsController::class, 'update'])->name('update');
+    Route::get('/preview/{template}', [OrderNotificationSettingsController::class, 'preview'])
+        ->whereIn('template', OrderNotificationSettingsController::PREVIEWS)
+        ->name('preview');
 });
 
 Route::get('/reports', [EcommerceReportController::class, 'index'])->name('reports.index');

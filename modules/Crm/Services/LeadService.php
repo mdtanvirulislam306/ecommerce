@@ -3,6 +3,7 @@
 namespace Modules\Crm\Services;
 
 use App\Core\Support\Service;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -133,10 +134,11 @@ class LeadService extends Service
      */
     public function assigneeOptions(): array
     {
-        return DB::table('users')
+        return User::query()
+            ->inCurrentShop()
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(fn ($user) => [
+            ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
             ])

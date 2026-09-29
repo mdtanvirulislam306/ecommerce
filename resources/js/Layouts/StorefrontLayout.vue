@@ -4,7 +4,7 @@ import ShopCheckoutModal from '../../../modules/Ecommerce/Resources/js/Component
 import ShopOrderSuccessModal from '../../../modules/Ecommerce/Resources/js/Components/ShopOrderSuccessModal.vue';
 import ShopProductModal from '../../../modules/Ecommerce/Resources/js/Components/ShopProductModal.vue';
 import ShopRequestProgress from '../../../modules/Ecommerce/Resources/js/Components/ShopRequestProgress.vue';
-import { useShopUi } from '@/Composables/useShopUi';
+import { useShopUi } from '@/composables/useShopUi';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
@@ -24,6 +24,15 @@ const cartTotalLabel = computed(() =>
     Math.round(cartSubtotal.value).toLocaleString('en-BD'),
 );
 const flash = computed(() => page.props.flash);
+const shopCustomer = computed(() => page.props.shopCustomer);
+const customerInitials = computed(() =>
+    (shopCustomer.value?.name ?? '')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0].toUpperCase())
+        .join(''),
+);
 const query = ref(props.search ?? '');
 const searching = ref(false);
 const { openCart, setCartButtonEl, state } = useShopUi();
@@ -164,6 +173,29 @@ onBeforeUnmount(() => {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.3 12.3l7 7.2c.4.4 1 .4 1.4 0l7-7.2a4.8 4.8 0 00-6.8-6.8l-.9.9-.9-.9a4.8 4.8 0 00-6.8 6.8z" />
                         </svg>
                     </button>
+
+                    <Link
+                        v-if="shopCustomer"
+                        :href="route('shop.account.index')"
+                        class="inline-flex h-10 items-center gap-2 rounded-full pl-1 pr-1 text-sm font-medium text-brand-navy transition hover:bg-brand-teal/10 sm:pr-3"
+                        :aria-label="`My account (${shopCustomer.name})`"
+                    >
+                        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-navy text-xs font-bold text-white">
+                            {{ customerInitials }}
+                        </span>
+                        <span class="hidden max-w-[7rem] truncate sm:inline">{{ shopCustomer.name.split(' ')[0] }}</span>
+                    </Link>
+                    <Link
+                        v-else
+                        :href="route('shop.account.login')"
+                        class="inline-flex h-10 items-center gap-2 rounded-full px-2.5 text-sm font-medium text-brand-navy transition hover:bg-brand-teal/10 hover:text-brand-teal-dark sm:px-3"
+                        aria-label="Sign in"
+                    >
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.1a7.5 7.5 0 0115 0A17.9 17.9 0 0112 21.75c-2.7 0-5.2-.6-7.5-1.65z" />
+                        </svg>
+                        <span class="hidden sm:inline">Sign in</span>
+                    </Link>
 
                     <button
                         type="button"

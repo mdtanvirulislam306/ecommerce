@@ -2,8 +2,8 @@
 
 namespace Modules\Crm\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Crm\Models\Customer;
 
 class UpdateCustomerRequest extends FormRequest
@@ -36,7 +36,7 @@ class UpdateCustomerRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('customers', 'code')->ignore($customer->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('customers', 'code')->ignore($customer->id)],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'company' => ['nullable', 'string', 'max:255'],

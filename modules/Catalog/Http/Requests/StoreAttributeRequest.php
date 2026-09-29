@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Catalog\Enums\AttributeInputType;
@@ -30,7 +31,7 @@ class StoreAttributeRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:60', 'unique:attributes,code'],
+            'code' => ['required', 'string', 'max:60', TenantRule::unique('attributes', 'code')],
             'type' => ['required', Rule::enum(AttributeType::class)],
             'input_type' => ['required', Rule::enum(AttributeInputType::class)],
             'is_active' => ['boolean'],

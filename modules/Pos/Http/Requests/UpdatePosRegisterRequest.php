@@ -2,8 +2,8 @@
 
 namespace Modules\Pos\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Pos\Models\PosRegister;
 
 class UpdatePosRegisterRequest extends FormRequest
@@ -33,7 +33,7 @@ class UpdatePosRegisterRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('pos_registers', 'code')->ignore($register->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('pos_registers', 'code')->ignore($register->id)],
             'warehouse_id' => ['nullable', 'integer', 'exists:warehouses,id'],
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],

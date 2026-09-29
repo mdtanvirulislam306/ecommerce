@@ -1,6 +1,6 @@
 <script setup>
 import StorefrontLayout from '@/Layouts/StorefrontLayout.vue';
-import { useShopUi } from '@/Composables/useShopUi';
+import { useShopUi } from '@/composables/useShopUi';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 

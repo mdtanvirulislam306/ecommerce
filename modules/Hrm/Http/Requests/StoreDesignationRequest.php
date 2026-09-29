@@ -2,6 +2,7 @@
 
 namespace Modules\Hrm\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDesignationRequest extends FormRequest
@@ -17,7 +18,7 @@ class StoreDesignationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:40', 'unique:hrm_designations,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('hrm_designations', 'code')],
             'name' => ['required', 'string', 'max:255'],
             'department_id' => ['nullable', 'exists:hrm_departments,id'],
             'is_active' => ['boolean'],

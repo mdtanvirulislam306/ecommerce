@@ -2,6 +2,7 @@
 
 namespace Modules\Marketing\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Marketing\Enums\DiscountType;
@@ -33,7 +34,7 @@ class UpdateMarketingCouponRequest extends FormRequest
         $coupon = $this->route('coupon');
 
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('marketing_coupons', 'code')->ignore($coupon?->id)],
+            'code' => ['required', 'string', 'max:50', TenantRule::unique('marketing_coupons', 'code')->ignore($coupon?->id)],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(DiscountType::class)],
             'value' => ['required', 'numeric', 'min:0'],

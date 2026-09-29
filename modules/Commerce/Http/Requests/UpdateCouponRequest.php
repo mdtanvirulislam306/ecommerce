@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Commerce\Models\Coupon;
@@ -32,7 +33,7 @@ class UpdateCouponRequest extends FormRequest
         $coupon = $this->route('coupon');
 
         return [
-            'code' => ['required', 'string', 'max:40', Rule::unique('coupons', 'code')->ignore($coupon->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('coupons', 'code')->ignore($coupon->id)],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', Rule::in(['percentage', 'fixed'])],
             'value' => ['nullable', 'numeric', 'min:0'],

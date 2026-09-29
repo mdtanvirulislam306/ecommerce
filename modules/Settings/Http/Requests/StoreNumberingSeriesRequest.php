@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNumberingSeriesRequest extends FormRequest
@@ -16,7 +17,7 @@ class StoreNumberingSeriesRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:numbering_series,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('numbering_series', 'code')],
             'prefix' => ['nullable', 'string', 'max:20'],
             'next_number' => ['required', 'integer', 'min:1'],
             'pad_length' => ['required', 'integer', 'min:1', 'max:12'],

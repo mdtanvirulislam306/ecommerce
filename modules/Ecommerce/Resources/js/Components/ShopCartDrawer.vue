@@ -1,19 +1,24 @@
 <script setup>
-import { useShopUi } from '@/Composables/useShopUi';
+import ShopCouponField from './ShopCouponField.vue';
+import { useCheckoutTotals } from '@/composables/useCheckoutTotals';
+import { useShopUi } from '@/composables/useShopUi';
+import { formatMoney } from '@/utils/formatMoney';
 import { router, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 
 const { state, closeCart, openCheckout } = useShopUi();
 const page = usePage();
-const coupon = ref('');
 
-const cart = computed(() => page.props.shopCart ?? { items: [], subtotal: '0', currency: 'BDT', count: 0, free_shipping_threshold: 2000 });
-const threshold = computed(() => Number(cart.value.free_shipping_threshold || 2000));
-const subtotal = computed(() => Number(cart.value.subtotal || 0));
-const remaining = computed(() => Math.max(0, threshold.value - subtotal.value));
-const progress = computed(() => Math.min(100, (subtotal.value / Math.max(threshold.value, 1)) * 100));
-const shippingAmount = computed(() => (remaining.value <= 0 ? 0 : 60));
-const total = computed(() => subtotal.value + shippingAmount.value);
+const cart = computed(() => page.props.shopCart ?? { items: [], subtotal: '0', discount: '0', currency: 'BDT', count: 0 });
+const money = (amount) => formatMoney(amount, cart.value.currency || 'BDT');
+const { delivery, subtotal, discount, freeThreshold, qualifiesForFree, freeRemaining, freeProgress, cheapestRate, total } = useCheckoutTotals(cart);
+
+const deliveryLabel = computed(() => {
+    if (!delivery.value.enabled || qualifiesForFree.value) {
+        return 'FREE';
+    }
+    return delivery.value.zones.length > 1 ? `From ${money(cheapestRate.value)}` : money(cheapestRate.value);
+});
 
 watch(
     () => state.cartOpen,
@@ -68,15 +73,19 @@ const goCheckout = () => {
                 </div>
 
                 <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-                    <div v-if="cart.items?.length" class="rounded-xl bg-brand-orange/10 px-3 py-3">
-                        <p class="text-xs font-medium text-brand-navy">
-                            <template v-if="remaining > 0">
-                                Add {{ cart.currency }} {{ remaining.toFixed(2) }} more to get FREE Shipping!
+                    <div v-if="cart.items?.length && freeThreshold !== null" class="rounded-xl px-3 py-3" :class="qualifiesForFree ? 'bg-emerald-50' : 'bg-brand-orange/10'">
+                        <p class="text-xs font-medium" :class="qualifiesForFree ? 'text-emerald-800' : 'text-brand-navy'">
+                            <template v-if="!qualifiesForFree">
+                                Add <span class="font-semibold">{{ money(freeRemaining) }}</span> more to get FREE delivery
                             </template>
-                            <template v-else>You unlocked FREE Shipping!</template>
+                            <template v-else>You unlocked FREE delivery!</template>
                         </p>
                         <div class="mt-2 h-2 overflow-hidden rounded-full bg-white">
-                            <div class="h-full rounded-full bg-brand-orange transition-all" :style="{ width: `${progress}%` }" />
+                            <div
+                                class="h-full rounded-full transition-all duration-500"
+                                :class="qualifiesForFree ? 'bg-emerald-500' : 'bg-brand-orange'"
+                                :style="{ width: `${freeProgress}%` }"
+                            />
                         </div>
                     </div>
 
@@ -88,7 +97,7 @@ const goCheckout = () => {
                             <p class="truncate text-sm font-medium text-brand-navy">{{ item.name }}</p>
                             <p class="mt-0.5 text-xs text-gray-500">{{ item.sku }}</p>
                             <p class="mt-1 text-sm font-semibold text-brand-navy">
-                                {{ item.currency }} {{ Number(item.unit_price).toFixed(2) }}
+                                {{ money(item.unit_price) }}
                             </p>
                             <div class="mt-2 flex items-center gap-2">
                                 <button type="button" class="h-7 w-7 rounded-lg border border-gray-200 text-sm" @click="updateQty(item, Math.max(1, Number(item.quantity) - 1))">−</button>
@@ -105,14 +114,8 @@ const goCheckout = () => {
 
                     <p v-if="!cart.items?.length" class="py-16 text-center text-sm text-gray-500">Your cart is empty.</p>
 
-                    <div v-if="cart.items?.length" class="flex gap-2 pt-2">
-                        <input
-                            v-model="coupon"
-                            type="text"
-                            placeholder="Coupon code"
-                            class="min-w-0 flex-1 rounded-xl border-gray-200 text-sm focus:border-brand-teal focus:ring-brand-teal"
-                        />
-                        <button type="button" class="rounded-xl bg-brand-orange px-4 text-sm font-semibold text-white">Apply</button>
+                    <div v-if="cart.items?.length" class="pt-1">
+                        <ShopCouponField />
                     </div>
                 </div>
 
@@ -120,15 +123,19 @@ const goCheckout = () => {
                     <div class="space-y-1.5 text-sm">
                         <div class="flex justify-between text-gray-600">
                             <span>Subtotal</span>
-                            <span>{{ cart.currency }} {{ subtotal.toFixed(2) }}</span>
+                            <span>{{ money(subtotal) }}</span>
+                        </div>
+                        <div v-if="discount > 0" class="flex justify-between text-emerald-600">
+                            <span>Coupon discount</span>
+                            <span>−{{ money(discount) }}</span>
                         </div>
                         <div class="flex justify-between text-gray-600">
-                            <span>Shipping</span>
-                            <span>{{ remaining <= 0 ? 'FREE' : `${cart.currency} ${shippingAmount.toFixed(2)}` }}</span>
+                            <span>Delivery</span>
+                            <span :class="deliveryLabel === 'FREE' ? 'font-medium text-emerald-600' : ''">{{ deliveryLabel }}</span>
                         </div>
                         <div class="flex justify-between pt-2 text-base font-semibold text-brand-navy">
-                            <span>Total</span>
-                            <span>{{ cart.currency }} {{ total.toFixed(2) }}</span>
+                            <span>{{ delivery.enabled && !qualifiesForFree ? 'Total (before delivery)' : 'Total' }}</span>
+                            <span>{{ money(total) }}</span>
                         </div>
                     </div>
                     <button

@@ -2,8 +2,8 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Commerce\Models\CustomerGroup;
 
 class UpdateCustomerGroupRequest extends FormRequest
@@ -32,7 +32,7 @@ class UpdateCustomerGroupRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('customer_groups', 'code')->ignore($group->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('customer_groups', 'code')->ignore($group->id)],
             'description' => ['nullable', 'string'],
             'price_list_id' => ['nullable', 'integer', 'exists:price_lists,id'],
             'is_active' => ['boolean'],

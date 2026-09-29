@@ -2,6 +2,7 @@
 
 namespace Modules\Crm\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCustomerSegmentRequest extends FormRequest
@@ -28,7 +29,7 @@ class StoreCustomerSegmentRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:customer_segments,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('customer_segments', 'code')],
             'description' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],

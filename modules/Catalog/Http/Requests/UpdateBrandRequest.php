@@ -2,8 +2,8 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Catalog\Models\Brand;
 
 class UpdateBrandRequest extends FormRequest
@@ -31,7 +31,7 @@ class UpdateBrandRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('brands', 'slug')->ignore($brand->id)],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('brands', 'slug')->ignore($brand->id)],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],
         ];

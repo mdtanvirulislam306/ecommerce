@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +29,7 @@ class StoreCouponRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:40', 'unique:coupons,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('coupons', 'code')],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', Rule::in(['percentage', 'fixed'])],
             'value' => ['nullable', 'numeric', 'min:0'],

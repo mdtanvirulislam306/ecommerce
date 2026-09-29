@@ -2,6 +2,7 @@
 
 namespace Modules\Crm\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreLeadSourceRequest extends FormRequest
@@ -27,7 +28,7 @@ class StoreLeadSourceRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:40', 'unique:lead_sources,code'],
+            'code' => ['nullable', 'string', 'max:40', TenantRule::unique('lead_sources', 'code')],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],
         ];

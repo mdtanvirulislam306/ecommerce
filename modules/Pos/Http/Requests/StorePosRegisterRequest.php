@@ -2,6 +2,7 @@
 
 namespace Modules\Pos\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StorePosRegisterRequest extends FormRequest
@@ -28,7 +29,7 @@ class StorePosRegisterRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:pos_registers,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('pos_registers', 'code')],
             'warehouse_id' => ['nullable', 'integer', 'exists:warehouses,id'],
             'is_default' => ['boolean'],
             'is_active' => ['boolean'],

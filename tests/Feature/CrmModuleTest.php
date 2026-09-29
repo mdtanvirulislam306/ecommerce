@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Core\Module\ModuleManager;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +82,16 @@ class CrmModuleTest extends TestCase
     public function test_guests_are_redirected_from_crm_overview(): void
     {
         $this->get(route('crm.overview'))->assertRedirect(route('login', absolute: false));
+    }
+
+    public function test_lead_assignees_only_include_users_of_the_current_shop(): void
+    {
+        $otherShop = Tenant::query()->create(['name' => 'Other', 'slug' => 'other', 'status' => Tenant::STATUS_ACTIVE]);
+        User::factory()->create(['name' => 'Other Shop Rep', 'tenant_id' => $otherShop->id]);
+
+        $this->actingAs($this->user)->get(route('crm.leads.all'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('assignees', [['id' => $this->user->id, 'name' => $this->user->name]]));
     }
 
     public function test_overview_and_list_pages_render(): void
@@ -226,6 +237,7 @@ class CrmModuleTest extends TestCase
         ]);
 
         DB::table('sales_orders')->insert([
+            'tenant_id' => $customer->tenant_id,
             'number' => 'SO-360-1',
             'status' => 'confirmed',
             'customer_id' => $customer->id,

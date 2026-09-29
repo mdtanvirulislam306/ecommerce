@@ -2,6 +2,7 @@
 
 namespace Modules\Ecommerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Ecommerce\Enums\DiscountType;
@@ -29,7 +30,7 @@ class UpdateEcommerceCouponRequest extends FormRequest
         $couponId = $this->route('ecommerceCoupon')?->id ?? $this->route('ecommerceCoupon');
 
         return [
-            'code' => ['required', 'string', 'max:40', Rule::unique('ecommerce_coupons', 'code')->ignore($couponId)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('ecommerce_coupons', 'code')->ignore($couponId)],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(DiscountType::class)],
             'value' => ['required', 'numeric', 'min:0'],

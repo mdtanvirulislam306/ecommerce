@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Http\Controllers;
 
+use App\Core\Tenant\TenantRule;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +36,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:bank_accounts,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('bank_accounts', 'code')],
             'bank_name' => ['nullable', 'string', 'max:255'],
             'account_number' => ['nullable', 'string', 'max:80'],
             'currency' => ['nullable', 'string', 'max:3'],
@@ -52,7 +53,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('bank_accounts', 'code')->ignore($bankAccount->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('bank_accounts', 'code')->ignore($bankAccount->id)],
             'bank_name' => ['nullable', 'string', 'max:255'],
             'account_number' => ['nullable', 'string', 'max:80'],
             'currency' => ['nullable', 'string', 'max:3'],
@@ -177,7 +178,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:cost_centers,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('cost_centers', 'code')],
             'is_active' => ['boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
@@ -190,7 +191,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('cost_centers', 'code')->ignore($costCenter->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('cost_centers', 'code')->ignore($costCenter->id)],
             'is_active' => ['boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
@@ -218,7 +219,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:profit_centers,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('profit_centers', 'code')],
             'is_active' => ['boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
@@ -231,7 +232,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('profit_centers', 'code')->ignore($profitCenter->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('profit_centers', 'code')->ignore($profitCenter->id)],
             'is_active' => ['boolean'],
         ]);
         $data['is_active'] = $request->boolean('is_active', true);
@@ -311,7 +312,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:fixed_asset_categories,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('fixed_asset_categories', 'code')],
             'useful_life_years' => ['nullable', 'numeric', 'min:0'],
             'depreciation_rate' => ['nullable', 'numeric', 'min:0'],
         ]);
@@ -324,7 +325,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('fixed_asset_categories', 'code')->ignore($fixedAssetCategory->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('fixed_asset_categories', 'code')->ignore($fixedAssetCategory->id)],
             'useful_life_years' => ['nullable', 'numeric', 'min:0'],
             'depreciation_rate' => ['nullable', 'numeric', 'min:0'],
         ]);
@@ -363,7 +364,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:fixed_assets,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('fixed_assets', 'code')],
             'fixed_asset_category_id' => ['nullable', 'integer', 'exists:fixed_asset_categories,id'],
             'purchase_date' => ['nullable', 'date'],
             'purchase_cost' => ['required', 'numeric', 'min:0'],
@@ -379,7 +380,7 @@ class AccountingMasterController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('fixed_assets', 'code')->ignore($fixedAsset->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('fixed_assets', 'code')->ignore($fixedAsset->id)],
             'fixed_asset_category_id' => ['nullable', 'integer', 'exists:fixed_asset_categories,id'],
             'purchase_date' => ['nullable', 'date'],
             'purchase_cost' => ['required', 'numeric', 'min:0'],

@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCustomerGroupRequest extends FormRequest
@@ -28,7 +29,7 @@ class StoreCustomerGroupRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:40', 'unique:customer_groups,code'],
+            'code' => ['nullable', 'string', 'max:40', TenantRule::unique('customer_groups', 'code')],
             'description' => ['nullable', 'string'],
             'price_list_id' => ['nullable', 'integer', 'exists:price_lists,id'],
             'is_active' => ['boolean'],

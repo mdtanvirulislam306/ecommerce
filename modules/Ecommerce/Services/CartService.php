@@ -18,6 +18,9 @@ class CartService extends Service
     public function __construct(
         private readonly PriceResolver $prices,
         private readonly StockAvailability $stock,
+        private readonly StorefrontCouponService $coupons,
+        private readonly DeliveryRateService $delivery,
+        private readonly PaymentSettingService $payments,
     ) {}
 
     private function sessionKey(): string
@@ -50,7 +53,7 @@ class CartService extends Service
 
     public function clear(): void
     {
-        Session::forget($this->sessionKey());
+        Session::forget([$this->sessionKey(), $this->couponSessionKey()]);
     }
 
     public function add(int $productId, float $quantity = 1, ?int $productVariantId = null): void
@@ -121,9 +124,33 @@ class CartService extends Service
     }
 
     /**
-     * @return array{items: list<array<string, mixed>>, subtotal: string, currency: string, count: int}
+     * @return array{items: list<array<string, mixed>>, subtotal: string, discount: string, coupon: array<string, mixed>|null, currency: string, count: int, delivery: array<string, mixed>, payment: array{options: list<array<string, mixed>>, requires_phone: bool, guest_checkout: bool}}
      */
     public function detailed(): array
+    {
+        ['items' => $items, 'subtotal' => $subtotal, 'currency' => $currency] = $this->pricedLines();
+        $coupon = $this->appliedCoupon($subtotal);
+
+        return [
+            'items' => $items,
+            'subtotal' => number_format($subtotal, 4, '.', ''),
+            'discount' => number_format($coupon['discount'] ?? 0, 4, '.', ''),
+            'coupon' => $coupon,
+            'currency' => $currency,
+            'count' => (int) collect($items)->sum(fn ($i) => (float) $i['quantity']),
+            'delivery' => $this->delivery->options(),
+            'payment' => [
+                'options' => $this->payments->checkoutOptions(),
+                'requires_phone' => $this->payments->requiresPhone(),
+                'guest_checkout' => $this->payments->guestCheckoutAllowed(),
+            ],
+        ];
+    }
+
+    /**
+     * @return array{items: list<array<string, mixed>>, subtotal: float, currency: string}
+     */
+    private function pricedLines(): array
     {
         $items = [];
         $subtotal = 0.0;
@@ -206,13 +233,64 @@ class CartService extends Service
             ];
         }
 
+        return ['items' => $items, 'subtotal' => $subtotal, 'currency' => $currency];
+    }
+
+    public function couponCode(): ?string
+    {
+        return Session::get($this->couponSessionKey());
+    }
+
+    /**
+     * @throws ValidationException when the code cannot be used on the current cart
+     */
+    public function applyCoupon(string $code): void
+    {
+        $subtotal = $this->pricedLines()['subtotal'];
+
+        if ($subtotal <= 0) {
+            throw ValidationException::withMessages(['coupon' => 'Add something to your cart before applying a coupon.']);
+        }
+
+        $applied = $this->coupons->resolve($code, $subtotal);
+
+        Session::put($this->couponSessionKey(), $applied['coupon']->code);
+    }
+
+    public function removeCoupon(): void
+    {
+        Session::forget($this->couponSessionKey());
+    }
+
+    /**
+     * A coupon that stopped being valid (expired, used up) is reported instead of silently discounting.
+     *
+     * @return array{code: string, name: string, discount: float}|array{code: string, error: string}|null
+     */
+    private function appliedCoupon(float $subtotal): ?array
+    {
+        $code = $this->couponCode();
+
+        if ($code === null || $subtotal <= 0) {
+            return null;
+        }
+
+        try {
+            $applied = $this->coupons->resolve($code, $subtotal);
+        } catch (ValidationException $exception) {
+            return ['code' => $code, 'error' => $exception->errors()['coupon'][0] ?? 'This coupon can no longer be used.'];
+        }
+
         return [
-            'items' => $items,
-            'subtotal' => number_format($subtotal, 4, '.', ''),
-            'currency' => $currency,
-            'count' => (int) collect($items)->sum(fn ($i) => (float) $i['quantity']),
-            'free_shipping_threshold' => 2000,
+            'code' => $applied['coupon']->code,
+            'name' => $applied['coupon']->name,
+            'discount' => $applied['discount'],
         ];
+    }
+
+    private function couponSessionKey(): string
+    {
+        return $this->sessionKey().'_coupon';
     }
 
     private function assertPublished(int $productId): void

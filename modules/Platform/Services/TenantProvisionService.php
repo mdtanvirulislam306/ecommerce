@@ -49,10 +49,7 @@ class TenantProvisionService extends Service
                     ->latest('id')
                     ->first();
 
-                $owner = User::query()
-                    ->where('tenant_id', $tenant->id)
-                    ->orderBy('id')
-                    ->first();
+                $owner = $this->ownerOf($tenant);
 
                 return [
                     'id' => $tenant->id,
@@ -118,6 +115,7 @@ class TenantProvisionService extends Service
             User::query()->create([
                 'tenant_id' => $tenant->id,
                 'is_platform_admin' => false,
+                'is_owner' => true,
                 'name' => $data['owner_name'],
                 'email' => $data['owner_email'],
                 'password' => Hash::make($data['owner_password']),
@@ -268,7 +266,7 @@ class TenantProvisionService extends Service
 
     public function resetOwnerPassword(Tenant $tenant, string $password): void
     {
-        $owner = User::query()->where('tenant_id', $tenant->id)->orderBy('id')->first();
+        $owner = $this->ownerOf($tenant);
         if ($owner === null) {
             throw ValidationException::withMessages(['owner' => 'Owner user not found.']);
         }
@@ -281,7 +279,7 @@ class TenantProvisionService extends Service
     public function formOptions(): array
     {
         return [
-            'plans' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name', 'code', 'price_monthly', 'currency']),
+            'plans' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name', 'code', 'price_monthly', 'currency', 'is_default']),
             'modules' => collect($this->modules->all())->map(fn ($m) => [
                 'code' => $m->code,
                 'name' => $m->name,
@@ -303,7 +301,7 @@ class TenantProvisionService extends Service
             ->latest('id')
             ->first();
 
-        $owner = User::query()->where('tenant_id', $tenant->id)->orderBy('id')->first();
+        $owner = $this->ownerOf($tenant);
         $overrides = TenantModuleOverride::query()->where('tenant_id', $tenant->id)->get()
             ->mapWithKeys(fn ($row) => [$row->module_code => $row->enabled])
             ->all();
@@ -329,6 +327,44 @@ class TenantProvisionService extends Service
         ];
     }
 
+    /**
+     * @return list<array{id: int, name: string, email: string, is_owner: bool, status: string, status_label: string, roles: list<string>, last_login_at: string|null, can_impersonate: bool}>
+     */
+    public function team(Tenant $tenant): array
+    {
+        return User::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('is_platform_admin', false)
+            ->with(['roles' => fn ($query) => $query->withoutGlobalScopes()->select('roles.id', 'roles.name')])
+            ->orderByDesc('is_owner')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_owner' => (bool) $user->is_owner,
+                'status' => $user->staffStatus()->value,
+                'status_label' => $user->staffStatus()->label(),
+                'roles' => $user->roles->pluck('name')->all(),
+                'last_login_at' => $user->last_login_at?->toIso8601String(),
+                'can_impersonate' => ! $user->isDeactivated() && ! $user->hasPendingInvitation(),
+            ])
+            ->all();
+    }
+
+    /**
+     * Shops provisioned before the owner flag existed fall back to their first user.
+     */
+    private function ownerOf(Tenant $tenant): ?User
+    {
+        return User::query()
+            ->where('tenant_id', $tenant->id)
+            ->orderByDesc('is_owner')
+            ->orderBy('id')
+            ->first();
+    }
+
     private function uniqueSlug(string $slug): string
     {
         $base = Str::slug($slug) ?: 'shop';
@@ -342,6 +378,10 @@ class TenantProvisionService extends Service
         return $candidate;
     }
 
+    /**
+     * Provisioning runs on a platform request, where the tenant scope is disabled, so lookups
+     * must name the new shop explicitly or they match another shop's defaults.
+     */
     private function seedProgressiveDefaults(int $tenantId): void
     {
         $previous = $this->tenantContext->get();
@@ -349,7 +389,7 @@ class TenantProvisionService extends Service
 
         try {
             if (Schema::hasTable('price_lists')) {
-                PriceList::query()->firstOrCreate(
+                PriceList::query()->where('tenant_id', $tenantId)->firstOrCreate(
                     ['code' => 'retail'],
                     [
                         'name' => 'Retail',
@@ -363,7 +403,7 @@ class TenantProvisionService extends Service
             }
 
             if (Schema::hasTable('warehouses')) {
-                Warehouse::query()->firstOrCreate(
+                Warehouse::query()->where('tenant_id', $tenantId)->firstOrCreate(
                     ['code' => 'MAIN'],
                     [
                         'name' => 'Main Warehouse',

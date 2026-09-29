@@ -2,6 +2,7 @@
 
 namespace Modules\Marketing\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Marketing\Enums\DiscountType;
@@ -31,7 +32,7 @@ class StoreMarketingCouponRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:50', 'unique:marketing_coupons,code'],
+            'code' => ['required', 'string', 'max:50', TenantRule::unique('marketing_coupons', 'code')],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(DiscountType::class)],
             'value' => ['required', 'numeric', 'min:0'],

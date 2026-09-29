@@ -2,8 +2,8 @@
 
 namespace Modules\Ecommerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Modules\Ecommerce\Services\PageBuilder\PageBuilderRegistry;
 
@@ -30,7 +30,7 @@ class UpdateCmsPageRequest extends FormRequest
 
         return [
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('cms_pages', 'slug')->ignore($pageId)],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('cms_pages', 'slug')->ignore($pageId)],
             'body' => ['nullable', 'string'],
             'blocks' => ['nullable', 'array'],
             'blocks.sections' => ['required_with:blocks', 'array'],

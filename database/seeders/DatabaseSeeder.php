@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             WorkflowSeeder::class,
             FilesSeeder::class,
             BillingSeeder::class,
+            AssignDefaultTenantSeeder::class,
         ]);
     }
 }

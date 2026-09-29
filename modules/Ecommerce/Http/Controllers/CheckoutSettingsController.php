@@ -7,29 +7,25 @@ use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Ecommerce\Http\Requests\UpdateCheckoutSettingsRequest;
-use Modules\Ecommerce\Services\StoreSettingService;
+use Modules\Ecommerce\Services\PaymentSettingService;
 
 class CheckoutSettingsController extends Controller
 {
-    public function index(StoreSettingService $settings): Response
+    public function index(PaymentSettingService $payments): Response
     {
         return Inertia::render('Ecommerce/Checkout/Index', [
-            'settings' => $settings->getMany(
-                ['guest_checkout', 'require_phone', 'payment_cod_enabled'],
-                ['guest_checkout' => '1', 'require_phone' => '0', 'payment_cod_enabled' => '1'],
-            ),
+            'settings' => $payments->adminSettings(),
+            'callbackUrls' => [
+                'success' => route('shop.payments.sslcommerz.success'),
+                'ipn' => route('shop.payments.sslcommerz.ipn'),
+            ],
         ]);
     }
 
-    public function update(UpdateCheckoutSettingsRequest $request, StoreSettingService $settings): RedirectResponse
+    public function update(UpdateCheckoutSettingsRequest $request, PaymentSettingService $payments): RedirectResponse
     {
-        $data = $request->validated();
-        $settings->putMany([
-            'guest_checkout' => ($data['guest_checkout'] ?? false) ? '1' : '0',
-            'require_phone' => ($data['require_phone'] ?? false) ? '1' : '0',
-            'payment_cod_enabled' => ($data['payment_cod_enabled'] ?? false) ? '1' : '0',
-        ]);
+        $payments->save($request->validated());
 
-        return back()->with('success', 'Checkout settings saved.');
+        return back()->with('success', 'Payment & checkout settings saved.');
     }
 }

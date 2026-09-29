@@ -2,8 +2,8 @@
 
 namespace Modules\Purchase\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Purchase\Models\SupplierGroup;
 
 class UpdateSupplierGroupRequest extends FormRequest
@@ -32,7 +32,7 @@ class UpdateSupplierGroupRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('supplier_groups', 'code')->ignore($group->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('supplier_groups', 'code')->ignore($group->id)],
             'description' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],

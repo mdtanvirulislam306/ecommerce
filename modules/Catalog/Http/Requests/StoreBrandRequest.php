@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreBrandRequest extends FormRequest
@@ -26,7 +27,7 @@ class StoreBrandRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:brands,slug'],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('brands', 'slug')],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],
         ];

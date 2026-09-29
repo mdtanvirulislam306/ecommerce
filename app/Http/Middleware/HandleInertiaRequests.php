@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Core\Module\ModuleManager;
+use App\Core\Permission\PermissionRegistry;
 use App\Core\Support\ShopComplexity;
 use App\Core\Tenant\TenantContext;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 use Modules\Billing\Services\PlanService;
 use Modules\Ecommerce\Services\CartService;
+use Modules\Ecommerce\Services\CustomerAccountService;
+use Modules\Platform\Services\ImpersonationService;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -35,6 +38,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user('web');
+
         return [
             ...parent::share($request),
             'cartCount' => fn () => app(CartService::class)->count(),
@@ -49,14 +54,28 @@ class HandleInertiaRequests extends Middleware
                 ] : null;
             },
             'auth' => [
-                'user' => $request->user() ? [
-                    'id' => $request->user()->id,
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                    'is_platform_admin' => (bool) $request->user()->is_platform_admin,
-                    'tenant_id' => $request->user()->tenant_id,
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_platform_admin' => (bool) $user->is_platform_admin,
+                    'is_owner' => (bool) $user->is_owner,
+                    'tenant_id' => $user->tenant_id,
                 ] : null,
+                'full_access' => fn () => (bool) $user?->hasFullShopAccess(),
+                'permissions' => fn () => $user?->hasFullShopAccess() === false
+                    ? $user->permissionKeys()
+                    : [],
+                'denied_paths' => fn () => $user
+                    ? app(PermissionRegistry::class)->deniedPagePaths($user)
+                    : [],
             ],
+            'impersonation' => fn () => app(ImpersonationService::class)->current($request),
+            'shopCustomer' => function () use ($request) {
+                $account = $request->user('customer');
+
+                return $account ? app(CustomerAccountService::class)->profile($account) : null;
+            },
             'enabledModules' => fn () => app(ModuleManager::class)->enabledCodes(),
             'shopFlags' => fn () => ShopComplexity::flags(),
             'subscription' => function () {

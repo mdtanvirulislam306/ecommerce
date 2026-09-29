@@ -2,6 +2,7 @@
 
 namespace Modules\Support\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSupportCategoryRequest extends FormRequest
@@ -16,7 +17,7 @@ class StoreSupportCategoryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:80', 'unique:support_categories,slug'],
+            'slug' => ['required', 'string', 'max:80', TenantRule::unique('support_categories', 'slug')],
             'is_active' => ['boolean'],
         ];
     }

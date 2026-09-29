@@ -2,8 +2,8 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Commerce\Models\PriceList;
 
 class UpdatePriceListRequest extends FormRequest
@@ -32,7 +32,7 @@ class UpdatePriceListRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('price_lists', 'code')->ignore($priceList->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('price_lists', 'code')->ignore($priceList->id)],
             'description' => ['nullable', 'string'],
             'currency' => ['nullable', 'string', 'size:3'],
             'is_active' => ['boolean'],

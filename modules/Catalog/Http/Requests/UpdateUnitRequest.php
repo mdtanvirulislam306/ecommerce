@@ -2,8 +2,8 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Catalog\Models\Unit;
 
 class UpdateUnitRequest extends FormRequest
@@ -31,7 +31,7 @@ class UpdateUnitRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:20', Rule::unique('units', 'code')->ignore($unit->id)],
+            'code' => ['required', 'string', 'max:20', TenantRule::unique('units', 'code')->ignore($unit->id)],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],
         ];

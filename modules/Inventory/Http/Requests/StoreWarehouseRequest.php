@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreWarehouseRequest extends FormRequest
@@ -27,7 +28,7 @@ class StoreWarehouseRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:warehouses,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('warehouses', 'code')],
             'address' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
             'is_default' => ['boolean'],

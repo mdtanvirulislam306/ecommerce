@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Catalog\Models\Category;
@@ -47,7 +48,7 @@ class UpdateCategoryRequest extends FormRequest
                 Rule::notIn([$category->id]),
             ],
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('categories', 'slug')->ignore($category->id)],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('categories', 'slug')->ignore($category->id)],
             'description' => ['nullable', 'string'],
             'media_library_id' => [
                 'nullable',

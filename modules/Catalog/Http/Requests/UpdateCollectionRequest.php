@@ -2,8 +2,8 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Catalog\Models\Collection;
 
 class UpdateCollectionRequest extends FormRequest
@@ -31,7 +31,7 @@ class UpdateCollectionRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('collections', 'slug')->ignore($collection->id)],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('collections', 'slug')->ignore($collection->id)],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],

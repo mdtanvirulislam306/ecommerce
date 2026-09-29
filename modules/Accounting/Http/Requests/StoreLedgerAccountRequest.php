@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Accounting\Enums\AccountType;
@@ -29,7 +30,7 @@ class StoreLedgerAccountRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:40', 'unique:ledger_accounts,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('ledger_accounts', 'code')],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(AccountType::class)],
             'parent_id' => ['nullable', 'integer', 'exists:ledger_accounts,id'],

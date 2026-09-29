@@ -34,6 +34,15 @@ See also: `.cursor/rules/agent-continue.mdc`.
 - [x] Inventory: batches, serial numbers, stock valuation, inventory reports
 - [x] Nav: every sidebar link → real route; ModulePage catch-all removed
 
+### SaaS platform (owner / tenant / plan / permission)
+
+- [x] Foundation: per-shop unique keys (`tenant_id` + code/slug/number), `TenantRule::unique` for validation, missing `tenant_id` on child tables, platform owner + Default Shop owner seeded, seeded rows assigned to Default Shop, provisioning creates the new shop's own defaults, users lists scoped to the current shop
+- [x] Permissions: route-derived keys `{module}.{area}.{ability}` (`PermissionRegistry`) enforced by the `permission` middleware on every admin route, stored as `roles.permissions` JSON; shop owners (`users.is_owner`) and platform admins bypass (also via `Gate::before`); role editor offers only plan-enabled modules; users page assigns roles; sidebar hides denied pages
+- [x] Shop staff management: owner invites staff (7-day emailed link, `/admin/invitation/{token}`), assigns roles, resends/cancels invites, deactivates/reactivates staff (login blocked, live sessions ended by `EnsureUserIsActive`); owners and yourself are never manageable; non-owners can only assign roles within their own permissions (`AssignableRole`)
+- [x] Impersonation: platform admin "Log in as" from the shop page (single-use 60s handoff link redeemed on the shop's own domain), amber "Viewing as…" banner with "Return to platform", profile/password changes locked while impersonating (`not-impersonating`), start/end written to the shop's audit log and shown as access history; platform admins, deactivated and invited users can't be impersonated
+- [x] Platform console (`/platform`, tabbed shell): dashboard (shops by status, MRR from running unsuspended plans, plan mix, needs-attention list, busiest shops), all users across shops (search, shop/type/status filters, "Log in as"), plan CRUD (create/edit modules + price, make default, hide, delete only never-billed plans; module changes clear shops' cached modules), platform settings in `platform_settings` (name, support email, default plan, SMTP mailer applied at boot + test email, platform SSLCommerz account, maintenance mode with 503 "back soon" page for everyone but platform admins)
+- [ ] Plan limits + billing: numeric limits (products, users, storage), trial, payment gateway, auto-suspend on expiry
+
 ### Admin role dashboards
 
 - [x] Owner overview: live revenue, orders, low stock, recent orders, alerts, and quick links

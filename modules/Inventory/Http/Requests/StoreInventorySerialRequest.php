@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +19,7 @@ class StoreInventorySerialRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'serial_number' => ['required', 'string', 'max:120', 'unique:inventory_serial_numbers,serial_number'],
+            'serial_number' => ['required', 'string', 'max:120', TenantRule::unique('inventory_serial_numbers', 'serial_number')],
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'product_variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
             'warehouse_id' => ['nullable', 'integer', 'exists:warehouses,id'],

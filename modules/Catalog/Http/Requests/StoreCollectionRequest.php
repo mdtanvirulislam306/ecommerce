@@ -2,6 +2,7 @@
 
 namespace Modules\Catalog\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCollectionRequest extends FormRequest
@@ -26,7 +27,7 @@ class StoreCollectionRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:collections,slug'],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('collections', 'slug')],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],

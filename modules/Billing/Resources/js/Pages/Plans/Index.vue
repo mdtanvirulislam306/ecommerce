@@ -46,7 +46,7 @@ function upgradeHref(mod) {
 <template>
     <Head title="Plans" />
 
-    <AdminLayout :title="isPlatformAdmin ? 'Plans & modules' : 'Your plan'">
+    <AdminLayout :title="isPlatformAdmin ? 'This shop\'s plan' : 'Your plan'">
         <PlatformEditor
             v-if="isPlatformAdmin"
             :plans="plans"

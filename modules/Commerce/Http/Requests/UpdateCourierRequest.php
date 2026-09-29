@@ -2,8 +2,8 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Commerce\Models\Courier;
 
 class UpdateCourierRequest extends FormRequest
@@ -30,7 +30,7 @@ class UpdateCourierRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('couriers', 'code')->ignore($courier->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('couriers', 'code')->ignore($courier->id)],
             'tracking_url_template' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
         ];

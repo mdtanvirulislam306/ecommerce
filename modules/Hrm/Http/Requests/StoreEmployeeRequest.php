@@ -2,6 +2,7 @@
 
 namespace Modules\Hrm\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreEmployeeRequest extends FormRequest
@@ -32,7 +33,7 @@ class StoreEmployeeRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:40', 'unique:hrm_employees,code'],
+            'code' => ['nullable', 'string', 'max:40', TenantRule::unique('hrm_employees', 'code')],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'department' => ['nullable', 'string', 'max:120'],

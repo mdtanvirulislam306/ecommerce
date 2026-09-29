@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -27,7 +28,7 @@ class StoreShipmentRequest extends FormRequest
     {
         return [
             'courier_id' => ['nullable', 'integer', 'exists:couriers,id'],
-            'tracking_number' => ['required', 'string', 'max:100', 'unique:shipments,tracking_number'],
+            'tracking_number' => ['required', 'string', 'max:100', TenantRule::unique('shipments', 'tracking_number')],
             'status' => ['required', 'string', Rule::in(['pending', 'shipped', 'in_transit', 'delivered', 'cancelled'])],
             'recipient_name' => ['required', 'string', 'max:255'],
             'destination' => ['nullable', 'string', 'max:255'],

@@ -72,9 +72,20 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        if ($user->isDeactivated()) {
+            throw ValidationException::withMessages([
+                'email' => 'Your access to this shop has been turned off. Ask the shop owner to restore it.',
+            ]);
+        }
+
         Auth::login($user, $this->boolean('remember'));
 
         RateLimiter::clear($this->throttleKey());
+
+        $user->forceFill([
+            'last_login_at' => now(),
+            ...($user->hasPendingInvitation() ? ['invitation_accepted_at' => now(), 'invitation_token' => null] : []),
+        ])->save();
     }
 
     /**

@@ -33,14 +33,14 @@ Route::get('/', function () {
 });
 
 Route::prefix('admin')->group(function () {
-    Route::middleware(['auth', 'verified'])->group(function () {
+    Route::middleware(['auth', 'verified', 'permission'])->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
         Route::post('/setup-checklist/dismiss', DismissSetupChecklistController::class)
             ->name('setup-checklist.dismiss');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+        Route::patch('/profile', [ProfileController::class, 'update'])->middleware('not-impersonating')->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->middleware('not-impersonating')->name('profile.destroy');
 
         MarketingServiceProvider::registerRoutes();
         BillingServiceProvider::registerRoutes();

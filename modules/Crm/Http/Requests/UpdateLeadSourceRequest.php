@@ -2,8 +2,8 @@
 
 namespace Modules\Crm\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Crm\Models\LeadSource;
 
 class UpdateLeadSourceRequest extends FormRequest
@@ -31,7 +31,7 @@ class UpdateLeadSourceRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('lead_sources', 'code')->ignore($source->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('lead_sources', 'code')->ignore($source->id)],
             'is_active' => ['boolean'],
             'sort_order' => ['integer', 'min:0'],
         ];

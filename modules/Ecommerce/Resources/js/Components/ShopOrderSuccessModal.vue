@@ -1,5 +1,5 @@
 <script setup>
-import { usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 const page = usePage();
@@ -155,8 +155,18 @@ onBeforeUnmount(() => {
                             <span class="text-gray-500">Payment</span>
                             <span class="font-medium text-brand-navy">{{ order.payment_method_label }}</span>
                         </div>
+                        <div v-if="Number(order.discount_total) > 0" class="mt-1.5 flex justify-between gap-3">
+                            <span class="text-gray-500">Coupon {{ order.coupon_code }}</span>
+                            <span class="font-medium text-emerald-600">−{{ money(order.discount_total) }}</span>
+                        </div>
                         <div class="mt-1.5 flex justify-between gap-3">
-                            <span class="text-gray-500">Total</span>
+                            <span class="text-gray-500">Delivery</span>
+                            <span class="font-medium" :class="Number(order.shipping_fee) === 0 ? 'text-emerald-600' : 'text-brand-navy'">
+                                {{ Number(order.shipping_fee) === 0 ? 'FREE' : money(order.shipping_fee) }}
+                            </span>
+                        </div>
+                        <div class="mt-1.5 flex justify-between gap-3 border-t border-gray-200 pt-1.5">
+                            <span class="text-gray-500">Total to pay</span>
                             <span class="font-semibold text-brand-navy">{{ money(order.grand_total) }}</span>
                         </div>
                     </div>
@@ -184,7 +194,18 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="border-t border-gray-100 px-6 py-4">
+                <div class="space-y-2 border-t border-gray-100 px-6 py-4">
+                    <Link
+                        v-if="order.tracking_url"
+                        :href="order.tracking_url"
+                        class="flex w-full items-center justify-center gap-2 rounded-xl border border-brand-navy/15 py-3 text-sm font-semibold text-brand-navy transition hover:bg-brand-navy/5"
+                        @click="close"
+                    >
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        Track your order
+                    </Link>
                     <button
                         type="button"
                         class="w-full rounded-xl bg-brand-orange py-3 text-sm font-semibold text-white shadow-sm shadow-brand-orange/30 transition hover:bg-brand-orange-dark"

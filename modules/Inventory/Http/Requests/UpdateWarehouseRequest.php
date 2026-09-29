@@ -2,8 +2,8 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Modules\Inventory\Models\Warehouse;
 
 class UpdateWarehouseRequest extends FormRequest
@@ -32,7 +32,7 @@ class UpdateWarehouseRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', Rule::unique('warehouses', 'code')->ignore($warehouse->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('warehouses', 'code')->ignore($warehouse->id)],
             'address' => ['nullable', 'string', 'max:500'],
             'is_active' => ['boolean'],
             'is_default' => ['boolean'],

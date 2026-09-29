@@ -1,11 +1,11 @@
 <script setup>
-import AdminLayout from '@/Layouts/AdminLayout.vue';
+import PlatformShell from '../../Components/PlatformShell.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -30,9 +30,8 @@ const submit = () => form.put(route('platform.tenants.update', props.tenant.id))
 </script>
 
 <template>
-    <Head :title="`Edit · ${tenant.name}`" />
-    <AdminLayout title="Platform · Edit Tenant">
-        <div class="mb-5">
+    <PlatformShell :title="`Edit ${tenant.name}`">
+        <div>
             <Link :href="route('platform.tenants.show', tenant.id)" class="text-sm font-medium text-brand-navy hover:text-brand-orange">← Back</Link>
         </div>
 
@@ -97,5 +96,5 @@ const submit = () => form.put(route('platform.tenants.update', props.tenant.id))
                 <Link :href="route('platform.tenants.show', tenant.id)"><SecondaryButton type="button">Cancel</SecondaryButton></Link>
             </div>
         </form>
-    </AdminLayout>
+    </PlatformShell>
 </template>

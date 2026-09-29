@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Commerce\Models\Referral;
@@ -22,7 +23,7 @@ class UpdateReferralRequest extends FormRequest
         $referral = $this->route('referral');
 
         return [
-            'code' => ['required', 'string', 'max:40', Rule::unique('referrals', 'code')->ignore($referral->id)],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('referrals', 'code')->ignore($referral->id)],
             'referrer_name' => ['required', 'string', 'max:255'],
             'referrer_email' => ['nullable', 'email', 'max:255'],
             'referee_email' => ['nullable', 'email', 'max:255'],

@@ -2,6 +2,7 @@
 
 namespace Modules\Commerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +19,7 @@ class StoreReferralRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:40', 'unique:referrals,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('referrals', 'code')],
             'referrer_name' => ['required', 'string', 'max:255'],
             'referrer_email' => ['nullable', 'email', 'max:255'],
             'referee_email' => ['nullable', 'email', 'max:255'],

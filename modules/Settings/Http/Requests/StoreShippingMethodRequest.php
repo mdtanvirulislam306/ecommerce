@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreShippingMethodRequest extends FormRequest
@@ -16,7 +17,7 @@ class StoreShippingMethodRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:40', 'unique:shipping_methods,code'],
+            'code' => ['required', 'string', 'max:40', TenantRule::unique('shipping_methods', 'code')],
             'flat_rate' => ['required', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
         ];

@@ -2,6 +2,7 @@
 
 namespace Modules\Ecommerce\Http\Requests;
 
+use App\Core\Tenant\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 use Modules\Ecommerce\Services\PageBuilder\PageBuilderRegistry;
@@ -27,7 +28,7 @@ class StoreCmsPageRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:cms_pages,slug'],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('cms_pages', 'slug')],
             'body' => ['nullable', 'string'],
             'blocks' => ['nullable', 'array'],
             'blocks.sections' => ['required_with:blocks', 'array'],

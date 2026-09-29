@@ -11,6 +11,9 @@ const currentUrl = computed(() => page.url);
 const enabledModules = computed(() => page.props.enabledModules ?? []);
 const shopFlags = computed(() => page.props.shopFlags ?? {});
 const isPlatformAdmin = computed(() => Boolean(page.props.auth?.user?.is_platform_admin));
+const deniedPaths = computed(() => new Set(page.props.auth?.denied_paths ?? []));
+
+const isPathDenied = (path) => deniedPaths.value.has((path || '').split('?')[0]);
 
 /** Map sidebar keys to module.json codes */
 const navKeyToModuleCode = {
@@ -63,6 +66,10 @@ const filterNavChildren = (mod) => {
                 return null;
             }
 
+            if (isPathDenied(path)) {
+                return null;
+            }
+
             if (mod.key === 'commerce' && !flags.multi_price) {
                 if (path.includes('/pricing/price-lists') || path.includes('/pricing/customer-groups') || path.includes('/pricing/quantity') || path.includes('/pricing/history')) {
                     return null;
@@ -88,13 +95,31 @@ const filterNavChildren = (mod) => {
         .filter(Boolean);
 };
 
-const visiblePrimaryModules = computed(() =>
-    primaryModules.filter((m) => moduleEnabled(m.key)),
-);
+const firstVisiblePath = (children) => {
+    for (const child of children) {
+        const path = child.children ? firstVisiblePath(child.children) : child.path;
+        if (path) return path;
+    }
+    return null;
+};
 
-const visibleMoreModules = computed(() =>
-    moreModules.filter((m) => moduleEnabled(m.key)),
-);
+/** Modules the user can open, linked to their first permitted page instead of a default page they may be denied. */
+const withLandingPath = (modules) =>
+    modules
+        .filter((m) => moduleEnabled(m.key))
+        .map((m) => {
+            const children = filterNavChildren(m);
+            if (!children.length) return null;
+            const landingPath = isPathDenied(m.defaultPath) ? firstVisiblePath(children) : m.defaultPath;
+            return { ...m, defaultPath: landingPath ?? m.defaultPath };
+        })
+        .filter(Boolean);
+
+const visiblePrimaryModules = computed(() => withLandingPath(primaryModules));
+
+const visibleMoreModules = computed(() => withLandingPath(moreModules));
+
+const visibleSettingsModule = computed(() => withLandingPath([settingsModule])[0] ?? null);
 
 const filteredActiveChildren = computed(() => filterNavChildren(activeModuleData.value));
 
@@ -234,11 +259,11 @@ const subTitle = computed(() => {
                         </svg>
                     </button>
 
-                    <div class="mt-4 border-t border-gray-100 pt-3">
+                    <div v-if="visibleSettingsModule" class="mt-4 border-t border-gray-100 pt-3">
                         <Link
-                            :href="settingsModule.defaultPath"
+                            :href="visibleSettingsModule.defaultPath"
                             class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-brand-navy"
-                            @click="openModule(settingsModule, 'root')"
+                            @click="openModule(visibleSettingsModule, 'root')"
                         >
                             <NavIcon name="settings" class="text-gray-400" />
                             Settings

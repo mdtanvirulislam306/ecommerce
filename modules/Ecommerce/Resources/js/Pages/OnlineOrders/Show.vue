@@ -4,7 +4,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { formatDateTime } from '@/utils/formatDateTime';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     order: { type: Object, required: true },
@@ -20,8 +20,27 @@ const statusMeta = {
     cancelled: { class: 'bg-red-50 text-red-700' },
 };
 
+const paymentStatusMeta = {
+    unpaid: 'bg-gray-100 text-gray-700',
+    pending: 'bg-amber-50 text-amber-800',
+    paid: 'bg-emerald-50 text-emerald-700',
+    failed: 'bg-red-50 text-red-700',
+};
+
 const confirmOrder = () => {
     actionForm.post(route('ecommerce.online-orders.confirm', props.order.id), { preserveScroll: true });
+};
+
+const linkCopied = ref(false);
+
+const copyTrackingLink = async () => {
+    try {
+        await navigator.clipboard.writeText(props.order.tracking_url);
+        linkCopied.value = true;
+        setTimeout(() => (linkCopied.value = false), 2000);
+    } catch {
+        linkCopied.value = false;
+    }
 };
 
 const cancelOrder = () => {
@@ -79,18 +98,69 @@ const cancelOrder = () => {
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Payment</p>
-                    <p>{{ order.payment_method_label }}</p>
+                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                        <span>{{ order.payment_method_label }}</span>
+                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="paymentStatusMeta[order.payment_status]">
+                            {{ order.payment_status_label }}
+                        </span>
+                    </div>
+                    <dl v-if="order.payment_status === 'paid'" class="mt-2 space-y-1 rounded-lg bg-gray-50 p-2.5 text-xs">
+                        <div class="flex justify-between gap-2">
+                            <dt class="text-gray-500">Paid</dt>
+                            <dd class="text-right">{{ formatDateTime(order.paid_at) }}</dd>
+                        </div>
+                        <div v-if="order.payment_card_type" class="flex justify-between gap-2">
+                            <dt class="text-gray-500">Via</dt>
+                            <dd class="text-right">{{ order.payment_card_type }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-2">
+                            <dt class="text-gray-500">Transaction</dt>
+                            <dd class="break-all text-right font-mono">{{ order.payment_transaction_id }}</dd>
+                        </div>
+                        <div v-if="order.payment_bank_transaction_id" class="flex justify-between gap-2">
+                            <dt class="text-gray-500">Bank ref</dt>
+                            <dd class="break-all text-right font-mono">{{ order.payment_bank_transaction_id }}</dd>
+                        </div>
+                    </dl>
+                    <p v-else-if="order.payment_status === 'pending' || order.payment_status === 'failed'" class="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
+                        The customer hasn't paid yet. Wait for payment before confirming.
+                    </p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Created</p>
                     <p>{{ formatDateTime(order.created_at) }}</p>
                 </div>
-                <div class="border-t border-gray-100 pt-3">
-                    <p class="text-xs text-gray-500">Grand total</p>
-                    <p class="text-xl font-semibold text-brand-navy">
-                        {{ order.currency }} {{ Number(order.grand_total).toFixed(2) }}
-                    </p>
+                <div v-if="order.tracking_url">
+                    <p class="text-xs text-gray-500">Customer tracking link</p>
+                    <div class="mt-1 flex items-center gap-2">
+                        <a :href="order.tracking_url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-xs text-brand-teal-dark hover:underline">
+                            {{ order.tracking_url }}
+                        </a>
+                        <button type="button" class="shrink-0 rounded-md border border-gray-200 px-2 py-1 text-xs text-brand-navy hover:bg-gray-50" @click="copyTrackingLink">
+                            {{ linkCopied ? 'Copied' : 'Copy' }}
+                        </button>
+                    </div>
                 </div>
+                <dl class="space-y-1 border-t border-gray-100 pt-3">
+                    <div class="flex justify-between text-gray-600">
+                        <dt>Subtotal</dt>
+                        <dd>{{ order.currency }} {{ Number(order.subtotal).toFixed(2) }}</dd>
+                    </div>
+                    <div v-if="Number(order.discount_total) > 0" class="flex justify-between text-emerald-700">
+                        <dt>Coupon {{ order.coupon_code }}</dt>
+                        <dd>−{{ Number(order.discount_total).toFixed(2) }}</dd>
+                    </div>
+                    <div class="flex justify-between text-gray-600">
+                        <dt>Delivery<span v-if="order.delivery_zone"> ({{ order.delivery_zone }})</span></dt>
+                        <dd>{{ Number(order.shipping_fee) === 0 ? 'Free' : Number(order.shipping_fee).toFixed(2) }}</dd>
+                    </div>
+                    <div class="pt-2">
+                        <p class="text-xs text-gray-500">Grand total</p>
+                        <p class="text-xl font-semibold text-brand-navy">
+                            {{ order.currency }} {{ Number(order.grand_total).toFixed(2) }}
+                        </p>
+                    </div>
+                </dl>
             </section>
 
             <section class="admin-card">

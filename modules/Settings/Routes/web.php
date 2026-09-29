@@ -18,10 +18,12 @@ use Modules\Settings\Http\Controllers\PaymentMethodController;
 use Modules\Settings\Http\Controllers\RegionsController;
 use Modules\Settings\Http\Controllers\RoleController;
 use Modules\Settings\Http\Controllers\ShippingMethodController;
+use Modules\Settings\Http\Controllers\StaffController;
 use Modules\Settings\Http\Controllers\SubscriptionController;
 use Modules\Settings\Http\Controllers\SystemController;
 use Modules\Settings\Http\Controllers\TaxRateController;
 use Modules\Settings\Http\Controllers\UserListController;
+use Modules\Settings\Http\Controllers\UserRoleController;
 use Modules\Settings\Http\Controllers\WarehousesController;
 
 Route::get('/general', [GeneralSettingsController::class, 'edit'])->name('general.edit');
@@ -34,7 +36,18 @@ Route::get('/business/regions', [RegionsController::class, 'index'])->name('busi
 Route::get('/business/areas', [AreasController::class, 'index'])->name('business.areas');
 
 Route::get('/warehouses', [WarehousesController::class, 'index'])->name('warehouses');
-Route::get('/users', [UserListController::class, 'index'])->name('users.index');
+Route::prefix('users')->name('users.')->group(function () {
+    Route::get('/', [UserListController::class, 'index'])->name('index');
+    Route::post('/', [StaffController::class, 'store'])->middleware('throttle:20,1')->name('store');
+    Route::put('/{user}/roles', [UserRoleController::class, 'update'])->whereNumber('user')->name('assign-roles');
+    Route::post('/{user}/resend-invitation', [StaffController::class, 'resendInvitation'])
+        ->whereNumber('user')
+        ->middleware('throttle:10,1')
+        ->name('resend-invitation');
+    Route::post('/{user}/deactivate', [StaffController::class, 'deactivate'])->whereNumber('user')->name('deactivate');
+    Route::post('/{user}/reactivate', [StaffController::class, 'reactivate'])->whereNumber('user')->name('reactivate');
+    Route::delete('/{user}', [StaffController::class, 'destroy'])->whereNumber('user')->name('destroy');
+});
 Route::get('/modules', [ModulesController::class, 'index'])->name('modules');
 Route::get('/subscription', [SubscriptionController::class, 'index'])->name('subscription');
 Route::get('/document-templates', [DocumentTemplatesController::class, 'index'])->name('document-templates');
