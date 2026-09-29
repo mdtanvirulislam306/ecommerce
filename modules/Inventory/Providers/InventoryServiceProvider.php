@@ -2,9 +2,11 @@
 
 namespace Modules\Inventory\Providers;
 
+use App\Core\Contracts\InventoryOverview;
 use App\Core\Contracts\StockAvailability;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Inventory\Services\InventoryOverviewReader;
 use Modules\Inventory\Services\StockService;
 
 class InventoryServiceProvider extends ServiceProvider
@@ -12,6 +14,8 @@ class InventoryServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(StockAvailability::class, StockService::class);
+        $this->app->forgetInstance(InventoryOverview::class);
+        $this->app->singleton(InventoryOverview::class, InventoryOverviewReader::class);
     }
 
     public function boot(): void
