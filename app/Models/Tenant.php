@@ -19,7 +19,18 @@ class Tenant extends Model
         'slug',
         'status',
         'notes',
+        'setup_dismissed_at',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'setup_dismissed_at' => 'datetime',
+        ];
+    }
 
     public function domains(): HasMany
     {
