@@ -2,11 +2,19 @@
 
 namespace Modules\Sales\Providers;
 
+use App\Core\Contracts\SalesOverview;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Sales\Services\SalesOverviewReader;
 
 class SalesServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->forgetInstance(SalesOverview::class);
+        $this->app->singleton(SalesOverview::class, SalesOverviewReader::class);
+    }
+
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');

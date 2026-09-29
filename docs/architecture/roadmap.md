@@ -34,6 +34,11 @@ See also: `.cursor/rules/agent-continue.mdc`.
 - [x] Inventory: batches, serial numbers, stock valuation, inventory reports
 - [x] Nav: every sidebar link → real route; ModulePage catch-all removed
 
+### Admin role dashboards
+
+- [x] Owner overview: live revenue, orders, low stock, recent orders, alerts, and quick links
+- [ ] Sales Manager, Inventory, Accountant, and Ecommerce dashboards (Owner overview is the only role shipped)
+
 ### Previously completed (archive)
 
 - [x] Phase 3 Billing / ModuleManager / upgrade UX
