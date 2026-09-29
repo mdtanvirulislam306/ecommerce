@@ -44,13 +44,21 @@ final class SalesOverviewReader implements SalesOverview
         return $this->orders->recentOpenOrders($limit);
     }
 
-    public function unpaidReceivables(): ?string
+    public function unpaidInvoiceCount(): ?int
     {
-        return $this->reports->overview()['invoices']['outstanding'];
+        $invoices = $this->reports->overview()['invoices'];
+
+        return $invoices['due'] + $invoices['partial'] + $invoices['overdue'];
     }
 
-    public function quotationConversion(): ?float
+    public function quotationConversionRate(): ?string
     {
-        return $this->quotations->conversionStats()['rate'];
+        $stats = $this->quotations->conversionStats();
+
+        if ($stats['total'] === 0) {
+            return null;
+        }
+
+        return round(($stats['converted'] / $stats['total']) * 100).'%';
     }
 }

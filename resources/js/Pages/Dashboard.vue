@@ -13,6 +13,7 @@ const props = defineProps({
     kpis: { type: Object, required: true },
     modulesAvailable: { type: Object, required: true },
     recentOrders: { type: Array, default: () => [] },
+    recentOpenOrders: { type: Array, default: () => [] },
     lowStockItems: { type: Array, default: () => [] },
     quickLinks: { type: Array, default: () => [] },
 });
@@ -31,8 +32,30 @@ const isSalesManager = computed(() => props.role === 'sales_manager');
 
 const kpiCards = computed(() => isSalesManager.value ? salesManagerCards() : ownerCards());
 
+const visibleOrders = computed(() => (isSalesManager.value ? props.recentOpenOrders : props.recentOrders));
+
 function salesManagerCards() {
-    return [
+    const cards = [
+        {
+            key: 'open_orders',
+            label: 'Open orders',
+            value: props.kpis.open_orders,
+            hint: `${props.kpis.draft_orders} draft · ${props.kpis.pending_orders} pending`,
+            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
+            query: {},
+            accent: 'border-l-brand-teal',
+            valueClass: 'text-brand-navy',
+        },
+        {
+            key: 'confirmed_orders',
+            label: 'Confirmed',
+            value: props.kpis.confirmed_orders,
+            hint: 'Stock fulfilled',
+            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
+            query: { status: 'confirmed' },
+            accent: 'border-l-emerald-500',
+            valueClass: 'text-emerald-700',
+        },
         {
             key: 'revenue',
             label: 'Revenue',
@@ -43,37 +66,35 @@ function salesManagerCards() {
             accent: 'border-l-brand-navy',
             valueClass: 'text-brand-navy',
         },
-        {
-            key: 'open_orders',
-            label: 'Open orders',
-            value: props.kpis.open_orders,
-            hint: `${props.kpis.draft} draft · ${props.kpis.pending} pending · ${props.kpis.confirmed} confirmed`,
-            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
-            query: {},
-            accent: 'border-l-brand-teal',
-            valueClass: 'text-brand-navy',
-        },
-        {
-            key: 'unpaid_ar',
-            label: 'Unpaid AR',
-            value: props.kpis.unpaid_ar ?? '—',
-            hint: props.kpis.unpaid_ar == null ? 'Unavailable' : 'Invoice amount due',
+    ];
+
+    if (props.kpis.unpaid_invoices != null) {
+        cards.push({
+            key: 'unpaid_invoices',
+            label: 'Unpaid invoices',
+            value: props.kpis.unpaid_invoices,
+            hint: 'Due, partial, and overdue',
             route: props.modulesAvailable.sales ? 'sales.invoices.all' : null,
             query: {},
             accent: 'border-l-amber-500',
             valueClass: 'text-amber-700',
-        },
-        {
-            key: 'quotation_conversion',
+        });
+    }
+
+    if (props.kpis.quotation_conversion_rate != null) {
+        cards.push({
+            key: 'quotation_conversion_rate',
             label: 'Quote conversion',
-            value: props.kpis.quotation_conversion == null ? '—' : props.kpis.quotation_conversion,
-            hint: props.kpis.quotation_conversion == null ? 'No quotations' : 'Quotations linked to an order',
+            value: props.kpis.quotation_conversion_rate,
+            hint: 'Quotations linked to an order',
             route: props.modulesAvailable.sales ? 'sales.quotations.all' : null,
             query: {},
             accent: 'border-l-brand-teal',
             valueClass: 'text-brand-teal-dark',
-        },
-    ];
+        });
+    }
+
+    return cards;
 }
 
 function ownerCards() {
@@ -173,7 +194,7 @@ const intro = computed(() => (
                         <div>
                             <h2 class="text-sm font-semibold text-brand-navy">Recent orders</h2>
                             <p class="text-xs text-gray-400">
-                                {{ isSalesManager ? 'Open orders only' : 'Latest sales activity' }}
+                                {{ isSalesManager ? 'Draft and pending only' : 'Latest sales activity' }}
                             </p>
                         </div>
                         <Link
@@ -196,7 +217,7 @@ const intro = computed(() => (
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="order in recentOrders" :key="order.id" class="admin-data-table__row">
+                                <tr v-for="order in visibleOrders" :key="order.id" class="admin-data-table__row">
                                     <td class="admin-data-table__cell">
                                         <Link
                                             :href="route('sales.orders.show', order.id)"
@@ -221,7 +242,7 @@ const intro = computed(() => (
                                         {{ formatDateTime(order.created_at) }}
                                     </td>
                                 </tr>
-                                <tr v-if="!recentOrders.length">
+                                <tr v-if="!visibleOrders.length">
                                     <td colspan="5" class="px-5 py-12 text-center">
                                         <p class="text-sm text-gray-500">
                                             {{ isSalesManager && !modulesAvailable.sales ? 'Orders are unavailable.' : 'No orders yet.' }}

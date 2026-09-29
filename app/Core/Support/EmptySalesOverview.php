@@ -31,12 +31,12 @@ final class EmptySalesOverview implements SalesOverview
         return [];
     }
 
-    public function unpaidReceivables(): ?string
+    public function unpaidInvoiceCount(): ?int
     {
         return null;
     }
 
-    public function quotationConversion(): ?float
+    public function quotationConversionRate(): ?string
     {
         return null;
     }

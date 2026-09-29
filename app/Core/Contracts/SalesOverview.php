@@ -27,7 +27,9 @@ interface SalesOverview
     public function recentOrders(int $limit = 6): array;
 
     /**
-     * Latest draft, pending, and confirmed orders. Cancelled orders are excluded.
+     * Latest draft and pending orders. Confirmed and cancelled are excluded.
+     *
+     * Snapshot `orders` still includes confirmed for the owner dashboard.
      *
      * @return list<array{
      *     id: int,
@@ -43,14 +45,14 @@ interface SalesOverview
     public function recentOpenOrders(int $limit = 6): array;
 
     /**
-     * Outstanding invoice balance from the Sales report (`sum(amount_due)`).
-     * Null when Sales does not expose receivables.
+     * Due, partial, and overdue invoice count from the Sales report.
+     * Null when Sales does not expose invoice totals.
      */
-    public function unpaidReceivables(): ?string;
+    public function unpaidInvoiceCount(): ?int;
 
     /**
-     * Share of quotations linked to an order by convert-to-order, from 0 to 1.
+     * Quotations linked to an order, as a whole-number percent such as "42%".
      * Null when there are no quotations.
      */
-    public function quotationConversion(): ?float;
+    public function quotationConversionRate(): ?string;
 }

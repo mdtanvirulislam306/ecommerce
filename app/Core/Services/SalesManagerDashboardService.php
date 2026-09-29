@@ -9,11 +9,10 @@ use App\Core\Support\Service;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Sales Manager overview for the admin dashboard.
+ * Sales Manager overview for the shared admin dashboard.
  *
- * Uses SalesOverview for confirmed revenue, open-order counts, and recent open
- * orders. Outstanding AR and quotation conversion are included only because
- * Sales already exposes them on that same reader. forOwner stays untouched.
+ * Open orders are draft and pending only. Confirmed stays on confirmed_orders
+ * and revenue, matching SalesOrderService::overviewStats(). forOwner is unchanged.
  */
 final class SalesManagerDashboardService extends Service
 {
@@ -25,30 +24,30 @@ final class SalesManagerDashboardService extends Service
     ) {}
 
     /**
-     * Inertia props for the Dashboard page when `role` is `sales_manager`.
+     * Inertia props for Dashboard when `role` is `sales_manager`.
      *
-     * `kpis.revenue` and `kpis.open_orders` match SalesOverview::snapshot()
-     * (`overviewStats` confirmed totals; open orders exclude cancelled).
-     * `kpis.unpaid_ar` is the Sales report sum of invoice `amount_due`, or null
-     * when Sales is off.
-     * `kpis.quotation_conversion` is converted quotations / all quotations
-     * (0 to 1, four decimal places), or null when Sales is off or there are
-     * no quotations.
-     * `recentOrders` are open orders only.
+     * `kpis.revenue` is SalesOverview snapshot revenue (`"1234.56"`).
+     * `kpis.open_orders` is draft + pending. Confirmed and cancelled are excluded.
+     * `kpis.confirmed_orders` is the overviewStats confirmed count.
+     * `kpis.unpaid_invoices` is the Sales report due + partial + overdue count,
+     * or null when Sales is off.
+     * `kpis.quotation_conversion_rate` is a percent string such as `"42%"`,
+     * or null when there are no quotations or Sales is off.
+     * `recentOpenOrders` are draft and pending only.
      *
      * @return array{
      *     role: string,
      *     kpis: array{
-     *         revenue: string,
      *         open_orders: int,
-     *         draft: int,
-     *         pending: int,
-     *         confirmed: int,
-     *         unpaid_ar: string|null,
-     *         quotation_conversion: float|null
+     *         draft_orders: int,
+     *         pending_orders: int,
+     *         confirmed_orders: int,
+     *         revenue: string,
+     *         unpaid_invoices: int|null,
+     *         quotation_conversion_rate: string|null
      *     },
-     *     modulesAvailable: array{sales: bool, inventory: bool, catalog: bool},
-     *     recentOrders: list<array{
+     *     modulesAvailable: array{sales: bool},
+     *     recentOpenOrders: list<array{
      *         id: int,
      *         number: string,
      *         customer_name: string,
@@ -71,20 +70,18 @@ final class SalesManagerDashboardService extends Service
         return [
             'role' => 'sales_manager',
             'kpis' => [
+                'open_orders' => $snapshot['draft'] + $snapshot['pending'],
+                'draft_orders' => $snapshot['draft'],
+                'pending_orders' => $snapshot['pending'],
+                'confirmed_orders' => $snapshot['confirmed'],
                 'revenue' => $snapshot['revenue'],
-                'open_orders' => $snapshot['orders'],
-                'draft' => $snapshot['draft'],
-                'pending' => $snapshot['pending'],
-                'confirmed' => $snapshot['confirmed'],
-                'unpaid_ar' => $salesEnabled ? $this->sales->unpaidReceivables() : null,
-                'quotation_conversion' => $salesEnabled ? $this->sales->quotationConversion() : null,
+                'unpaid_invoices' => $salesEnabled ? $this->sales->unpaidInvoiceCount() : null,
+                'quotation_conversion_rate' => $salesEnabled ? $this->sales->quotationConversionRate() : null,
             ],
             'modulesAvailable' => [
                 'sales' => $salesEnabled,
-                'inventory' => $this->modules->enabled('inventory'),
-                'catalog' => $this->modules->enabled('catalog'),
             ],
-            'recentOrders' => $salesEnabled
+            'recentOpenOrders' => $salesEnabled
                 ? $this->sales->recentOpenOrders(self::RECENT_ORDER_LIMIT)
                 : [],
             'quickLinks' => $this->quickLinks($salesEnabled),

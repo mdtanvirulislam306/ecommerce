@@ -58,7 +58,7 @@ class SalesOrderService extends Service
     }
 
     /**
-     * Latest draft, pending, and confirmed orders. Cancelled orders are excluded.
+     * Latest draft and pending orders. Confirmed and cancelled orders are excluded.
      *
      * @return list<array{
      *     id: int,
@@ -79,7 +79,6 @@ class SalesOrderService extends Service
             ->whereIn('status', [
                 SalesOrderStatus::Draft->value,
                 SalesOrderStatus::Pending->value,
-                SalesOrderStatus::Confirmed->value,
             ])
             ->orderByDesc('created_at')
             ->limit($limit)

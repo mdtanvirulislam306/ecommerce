@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Core\Services\SalesManagerDashboardService;
 use App\Core\Tenant\TenantContext;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
@@ -40,26 +41,25 @@ class SalesManagerDashboardTest extends TestCase
             ->where('role', 'sales_manager')
             ->missing('lowStockItems')
             ->missing('available')
+            ->missing('recentOrders')
             ->where('kpis', fn ($kpis) => $kpis->keys()->sort()->values()->all() === [
-                'confirmed',
-                'draft',
+                'confirmed_orders',
+                'draft_orders',
                 'open_orders',
-                'pending',
-                'quotation_conversion',
+                'pending_orders',
+                'quotation_conversion_rate',
                 'revenue',
-                'unpaid_ar',
+                'unpaid_invoices',
             ])
             ->where('kpis.revenue', '0.00')
             ->where('kpis.open_orders', 0)
-            ->where('kpis.draft', 0)
-            ->where('kpis.pending', 0)
-            ->where('kpis.confirmed', 0)
-            ->where('kpis.unpaid_ar', '0.00')
-            ->where('kpis.quotation_conversion', null)
-            ->where('modulesAvailable.sales', true)
-            ->where('modulesAvailable.inventory', true)
-            ->where('modulesAvailable.catalog', true)
-            ->has('recentOrders', 0)
+            ->where('kpis.draft_orders', 0)
+            ->where('kpis.pending_orders', 0)
+            ->where('kpis.confirmed_orders', 0)
+            ->where('kpis.unpaid_invoices', 0)
+            ->where('kpis.quotation_conversion_rate', null)
+            ->where('modulesAvailable', ['sales' => true])
+            ->has('recentOpenOrders', 0)
             ->where('quickLinks', fn ($links) => collect($links)->contains('route', 'sales.overview')
                 && collect($links)->contains('route', 'sales.invoices.all')
                 && collect($links)->contains('route', 'sales.quotations.all'))
@@ -102,17 +102,17 @@ class SalesManagerDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('kpis.draft', 1)
-            ->where('kpis.pending', 1)
-            ->where('kpis.confirmed', 2)
-            ->where('kpis.open_orders', 4)
+            ->where('kpis.draft_orders', 1)
+            ->where('kpis.pending_orders', 1)
+            ->where('kpis.confirmed_orders', 2)
+            ->where('kpis.open_orders', 2)
             ->where('kpis.revenue', '210.00')
             ->missing('kpis.cancelled')
-            ->has('recentOrders', 4)
-            ->where('recentOrders', function ($orders) {
+            ->has('recentOpenOrders', 2)
+            ->where('recentOpenOrders', function ($orders) {
                 $first = collect($orders->first());
 
-                return $orders->count() === 4
+                return $orders->count() === 2
                     && $first->get('number') === 'SO-PEND'
                     && $first->get('status') === 'pending'
                     && $first->get('status_label') === 'Pending'
@@ -127,11 +127,11 @@ class SalesManagerDashboardTest extends TestCase
                         'status',
                         'status_label',
                     ]
-                    && $orders->contains('number', 'SO-CONF')
-                    && $orders->contains('number', 'SO-CONF-2')
                     && $orders->contains('number', 'SO-DRAFT')
-                    && ! $orders->contains('number', 'SO-CANCEL')
-                    && ! $orders->contains('status', 'cancelled');
+                    && $orders->every(fn ($order) => in_array($order['status'], ['draft', 'pending'], true))
+                    && ! $orders->contains('number', 'SO-CONF')
+                    && ! $orders->contains('number', 'SO-CONF-2')
+                    && ! $orders->contains('number', 'SO-CANCEL');
             })
         );
     }
@@ -152,7 +152,7 @@ class SalesManagerDashboardTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->where('role', 'sales_manager')
-            ->where('kpis.unpaid_ar', '75.00')
+            ->where('kpis.unpaid_invoices', 3)
         );
     }
 
@@ -171,11 +171,12 @@ class SalesManagerDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('kpis.quotation_conversion', fn ($value) => is_float($value) && abs($value - 0.3333) < 0.00001)
+            ->where('kpis.quotation_conversion_rate', '33%')
             ->where('kpis.revenue', '0.00')
             ->where('kpis.open_orders', 1)
-            ->where('kpis.draft', 1)
-            ->where('kpis.confirmed', 0)
+            ->where('kpis.draft_orders', 1)
+            ->where('kpis.confirmed_orders', 0)
+            ->where('recentOpenOrders.0.status', 'draft')
         );
     }
 
@@ -217,19 +218,19 @@ class SalesManagerDashboardTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->where('kpis.revenue', '10.00')
-            ->where('kpis.open_orders', 2)
-            ->where('kpis.confirmed', 1)
-            ->where('kpis.draft', 1)
-            ->where('kpis.unpaid_ar', '15.00')
-            ->where('kpis.quotation_conversion', fn ($value) => is_float($value) && abs($value - 0.5) < 0.00001)
-            ->where('recentOrders', fn ($orders) => $orders->contains('number', 'SO-HOME')
-                && $orders->contains('number', 'SO-HOME-DRAFT')
+            ->where('kpis.open_orders', 1)
+            ->where('kpis.confirmed_orders', 1)
+            ->where('kpis.draft_orders', 1)
+            ->where('kpis.unpaid_invoices', 1)
+            ->where('kpis.quotation_conversion_rate', '50%')
+            ->where('recentOpenOrders', fn ($orders) => $orders->contains('number', 'SO-HOME-DRAFT')
+                && ! $orders->contains('number', 'SO-HOME')
                 && ! $orders->contains('number', 'SO-HOME-CANCEL')
                 && ! $orders->contains('number', 'SO-OTHER'))
         );
     }
 
-    public function test_disabled_sales_module_returns_zeros_and_an_empty_list(): void
+    public function test_disabled_sales_module_uses_the_sales_module_gate(): void
     {
         $tenant = $this->defaultTenant();
         TenantModuleOverride::query()->create([
@@ -246,20 +247,59 @@ class SalesManagerDashboardTest extends TestCase
 
         $response = $this->actingAs($user)->get($this->dashboardUrl($tenant));
 
+        $response->assertForbidden();
+        $response->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Billing/Upgrade', false)
+            ->where('module.code', 'sales')
+        );
+    }
+
+    public function test_sales_manager_overview_is_empty_when_sales_is_disabled(): void
+    {
+        $tenant = $this->defaultTenant();
+        TenantModuleOverride::query()->create([
+            'tenant_id' => $tenant->id,
+            'module_code' => 'sales',
+            'enabled' => false,
+        ]);
+        $this->useTenant($tenant);
+        $order = $this->makeOrder($tenant, 'SO-HIDDEN', 'draft', '500.00', 'Hidden Buyer', now());
+        $this->makeQuotation($tenant, 'QT-HIDDEN', 'accepted', $order->id);
+
+        $overview = app(SalesManagerDashboardService::class)->overview();
+
+        $this->assertSame('sales_manager', $overview['role']);
+        $this->assertSame(0, $overview['kpis']['open_orders']);
+        $this->assertSame(0, $overview['kpis']['draft_orders']);
+        $this->assertSame(0, $overview['kpis']['pending_orders']);
+        $this->assertSame(0, $overview['kpis']['confirmed_orders']);
+        $this->assertSame('0.00', $overview['kpis']['revenue']);
+        $this->assertNull($overview['kpis']['unpaid_invoices']);
+        $this->assertNull($overview['kpis']['quotation_conversion_rate']);
+        $this->assertSame(['sales' => false], $overview['modulesAvailable']);
+        $this->assertSame([], $overview['recentOpenOrders']);
+        $this->assertSame([], $overview['quickLinks']);
+    }
+
+    public function test_owner_dashboard_still_renders_when_sales_is_disabled(): void
+    {
+        $tenant = $this->defaultTenant();
+        TenantModuleOverride::query()->create([
+            'tenant_id' => $tenant->id,
+            'module_code' => 'sales',
+            'enabled' => false,
+        ]);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->makeOrder($tenant, 'SO-HIDDEN', 'confirmed', '500.00', 'Hidden Buyer', now());
+
+        $response = $this->actingAs($user)->get($this->dashboardUrl($tenant));
+
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Dashboard')
-            ->where('role', 'sales_manager')
-            ->where('modulesAvailable.sales', false)
+            ->where('role', 'owner')
             ->where('kpis.revenue', '0.00')
-            ->where('kpis.open_orders', 0)
-            ->where('kpis.draft', 0)
-            ->where('kpis.pending', 0)
-            ->where('kpis.confirmed', 0)
-            ->where('kpis.unpaid_ar', null)
-            ->where('kpis.quotation_conversion', null)
-            ->has('recentOrders', 0)
-            ->has('quickLinks', 0)
+            ->where('kpis.orders', 0)
         );
     }
 
