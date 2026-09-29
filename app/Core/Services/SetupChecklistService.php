@@ -72,6 +72,23 @@ final class SetupChecklistService extends Service
     }
 
     /**
+     * Record that the current shop dismissed the first-run checklist.
+     * Does not change the four derived flags or `completed`.
+     */
+    public function dismissForCurrentTenant(): void
+    {
+        $tenant = app(TenantContext::class)->get();
+
+        if ($tenant === null) {
+            abort(403);
+        }
+
+        $tenant->update([
+            'setup_dismissed_at' => now(),
+        ]);
+    }
+
+    /**
      * @return array{
      *     shop_name: bool,
      *     business_profile: bool,
