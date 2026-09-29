@@ -263,9 +263,9 @@ class QuotationService extends Service
     /**
      * Quotations converted to an order (`sales_order_id` set by convertToOrder).
      *
-     * `rate` is converted / total, two decimal places. Null when no quotations exist.
+     * `rate` is converted / total, four decimal places, from 0 to 1. Null when no quotations exist.
      *
-     * @return array{total: int, converted: int, rate: string|null}
+     * @return array{total: int, converted: int, rate: float|null}
      */
     public function conversionStats(): array
     {
@@ -275,9 +275,7 @@ class QuotationService extends Service
         return [
             'total' => $total,
             'converted' => $converted,
-            'rate' => $total === 0
-                ? null
-                : number_format($converted / $total, 2, '.', ''),
+            'rate' => $total === 0 ? null : round($converted / $total, 4),
         ];
     }
 

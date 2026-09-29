@@ -57,6 +57,46 @@ class SalesOrderService extends Service
         ];
     }
 
+    /**
+     * Latest draft, pending, and confirmed orders. Cancelled orders are excluded.
+     *
+     * @return list<array{
+     *     id: int,
+     *     number: string,
+     *     customer_name: string,
+     *     status: string,
+     *     status_label: string,
+     *     currency: string,
+     *     grand_total: string,
+     *     created_at: string|null
+     * }>
+     */
+    public function recentOpenOrders(int $limit = 6): array
+    {
+        $limit = max(1, min($limit, 10));
+
+        return SalesOrder::query()
+            ->whereIn('status', [
+                SalesOrderStatus::Draft->value,
+                SalesOrderStatus::Pending->value,
+                SalesOrderStatus::Confirmed->value,
+            ])
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn (SalesOrder $order) => [
+                'id' => $order->id,
+                'number' => $order->number,
+                'customer_name' => $order->customer_name,
+                'status' => $order->status->value,
+                'status_label' => $order->status->label(),
+                'currency' => $order->currency,
+                'grand_total' => (string) $order->grand_total,
+                'created_at' => $order->created_at?->toIso8601String(),
+            ])
+            ->all();
+    }
+
     public function listPaginated(
         ?string $search = null,
         ?SalesOrderStatus $status = null,

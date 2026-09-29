@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\Route;
 /**
  * Owner overview for the admin home.
  *
- * Sales Manager, Inventory, Accountant, and Ecommerce dashboards are later roles.
- * Give them their own service methods instead of branching this payload.
+ * Sales Manager uses SalesManagerDashboardService. Inventory, Accountant, and
+ * Ecommerce dashboards are later roles. Give them their own services instead
+ * of branching forOwner.
  */
 final class OwnerDashboardService extends Service
 {

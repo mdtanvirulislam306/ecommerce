@@ -2,51 +2,62 @@
 
 namespace App\Core\Services;
 
-use App\Core\Contracts\SalesManagerOverview;
+use App\Core\Contracts\SalesOverview;
 use App\Core\Module\ModuleManager;
-use App\Core\Support\EmptySalesManagerOverview;
+use App\Core\Support\EmptySalesOverview;
 use App\Core\Support\Service;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Sales Manager overview. Reads Sales through SalesManagerOverview only.
+ * Sales Manager overview for the admin dashboard.
  *
- * There is no separate Sales Manager role yet. Any verified shop user may open
- * this page. Sales CRUD stays behind the `module:sales` gate. When Sales is
- * off, this payload is zeros and empty lists so the page still renders.
+ * Uses SalesOverview for confirmed revenue, open-order counts, and recent open
+ * orders. Outstanding AR and quotation conversion are included only because
+ * Sales already exposes them on that same reader. forOwner stays untouched.
  */
 final class SalesManagerDashboardService extends Service
 {
     private const RECENT_ORDER_LIMIT = 6;
 
-    private const UNPAID_INVOICE_LIMIT = 6;
-
     public function __construct(
         private readonly ModuleManager $modules,
-        private readonly SalesManagerOverview $sales,
+        private readonly SalesOverview $sales,
     ) {}
 
     /**
-     * Inertia props for `SalesManagerDashboard`.
+     * Inertia props for the Dashboard page when `role` is `sales_manager`.
      *
-     * `kpis.revenue` is confirmed sales-order grand totals from `overviewStats`
-     * (no date window; Sales does not define a narrower period).
-     * `kpis.orders.open` excludes cancelled.
-     * `kpis.unpaid_invoices.outstanding` is the Sales report sum of invoice `amount_due`.
-     * `kpis.unpaid_invoices.count` is due + partial + overdue.
-     * `kpis.conversion.rate` is quotations with `sales_order_id` / all quotations, or null.
+     * `kpis.revenue` and `kpis.open_orders` match SalesOverview::snapshot()
+     * (`overviewStats` confirmed totals; open orders exclude cancelled).
+     * `kpis.unpaid_ar` is the Sales report sum of invoice `amount_due`, or null
+     * when Sales is off.
+     * `kpis.quotation_conversion` is converted quotations / all quotations
+     * (0 to 1, four decimal places), or null when Sales is off or there are
+     * no quotations.
+     * `recentOrders` are open orders only.
      *
      * @return array{
      *     role: string,
-     *     available: bool,
      *     kpis: array{
-     *         orders: array{draft: int, pending: int, confirmed: int, cancelled: int, open: int},
      *         revenue: string,
-     *         unpaid_invoices: array{count: int, outstanding: string, due: int, partial: int, overdue: int, paid: int},
-     *         conversion: array{total: int, converted: int, rate: string|null}
+     *         open_orders: int,
+     *         draft: int,
+     *         pending: int,
+     *         confirmed: int,
+     *         unpaid_ar: string|null,
+     *         quotation_conversion: float|null
      *     },
-     *     recentOrders: list<array<string, mixed>>,
-     *     unpaidInvoices: list<array<string, mixed>>,
+     *     modulesAvailable: array{sales: bool, inventory: bool, catalog: bool},
+     *     recentOrders: list<array{
+     *         id: int,
+     *         number: string,
+     *         customer_name: string,
+     *         status: string,
+     *         status_label: string,
+     *         currency: string,
+     *         grand_total: string,
+     *         created_at: string|null
+     *     }>,
      *     quickLinks: list<array{label: string, description: string, route: string}>
      * }
      */
@@ -55,22 +66,26 @@ final class SalesManagerDashboardService extends Service
         $salesEnabled = $this->modules->enabled('sales');
         $snapshot = $salesEnabled
             ? $this->sales->snapshot()
-            : (new EmptySalesManagerOverview)->snapshot();
+            : (new EmptySalesOverview)->snapshot();
 
         return [
             'role' => 'sales_manager',
-            'available' => $salesEnabled,
             'kpis' => [
-                'orders' => $snapshot['orders'],
                 'revenue' => $snapshot['revenue'],
-                'unpaid_invoices' => $snapshot['invoices'],
-                'conversion' => $snapshot['conversion'],
+                'open_orders' => $snapshot['orders'],
+                'draft' => $snapshot['draft'],
+                'pending' => $snapshot['pending'],
+                'confirmed' => $snapshot['confirmed'],
+                'unpaid_ar' => $salesEnabled ? $this->sales->unpaidReceivables() : null,
+                'quotation_conversion' => $salesEnabled ? $this->sales->quotationConversion() : null,
+            ],
+            'modulesAvailable' => [
+                'sales' => $salesEnabled,
+                'inventory' => $this->modules->enabled('inventory'),
+                'catalog' => $this->modules->enabled('catalog'),
             ],
             'recentOrders' => $salesEnabled
-                ? $this->sales->recentOrders(self::RECENT_ORDER_LIMIT)
-                : [],
-            'unpaidInvoices' => $salesEnabled
-                ? $this->sales->unpaidInvoices(self::UNPAID_INVOICE_LIMIT)
+                ? $this->sales->recentOpenOrders(self::RECENT_ORDER_LIMIT)
                 : [],
             'quickLinks' => $this->quickLinks($salesEnabled),
         ];

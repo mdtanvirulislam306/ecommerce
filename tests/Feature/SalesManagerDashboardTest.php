@@ -12,6 +12,7 @@ use Inertia\Testing\AssertableInertia;
 use Modules\Sales\Models\SalesInvoice;
 use Modules\Sales\Models\SalesOrder;
 use Modules\Sales\Models\SalesQuotation;
+use Modules\Settings\Models\Role;
 use Tests\TestCase;
 
 class SalesManagerDashboardTest extends TestCase
@@ -25,42 +26,63 @@ class SalesManagerDashboardTest extends TestCase
         $this->withoutVite();
     }
 
-    public function test_guests_are_redirected_from_the_sales_manager_dashboard(): void
-    {
-        $response = $this->get(route('sales-manager.dashboard'));
-
-        $response->assertRedirect(route('login', absolute: false));
-    }
-
     public function test_sales_manager_dashboard_is_empty_when_the_shop_has_no_sales_activity(): void
     {
         $tenant = $this->defaultTenant();
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->assignRole($user, $tenant, 'sales-manager', 'Sales Manager');
 
         $response = $this->actingAs($user)->get($this->dashboardUrl($tenant));
 
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('SalesManagerDashboard')
+            ->component('Dashboard')
             ->where('role', 'sales_manager')
-            ->where('available', true)
-            ->where('kpis.orders.draft', 0)
-            ->where('kpis.orders.pending', 0)
-            ->where('kpis.orders.confirmed', 0)
-            ->where('kpis.orders.cancelled', 0)
-            ->where('kpis.orders.open', 0)
+            ->missing('lowStockItems')
+            ->missing('available')
+            ->where('kpis', fn ($kpis) => $kpis->keys()->sort()->values()->all() === [
+                'confirmed',
+                'draft',
+                'open_orders',
+                'pending',
+                'quotation_conversion',
+                'revenue',
+                'unpaid_ar',
+            ])
             ->where('kpis.revenue', '0.00')
-            ->where('kpis.unpaid_invoices.count', 0)
-            ->where('kpis.unpaid_invoices.outstanding', '0.00')
-            ->where('kpis.unpaid_invoices.paid', 0)
-            ->where('kpis.conversion.total', 0)
-            ->where('kpis.conversion.converted', 0)
-            ->where('kpis.conversion.rate', null)
+            ->where('kpis.open_orders', 0)
+            ->where('kpis.draft', 0)
+            ->where('kpis.pending', 0)
+            ->where('kpis.confirmed', 0)
+            ->where('kpis.unpaid_ar', '0.00')
+            ->where('kpis.quotation_conversion', null)
+            ->where('modulesAvailable.sales', true)
+            ->where('modulesAvailable.inventory', true)
+            ->where('modulesAvailable.catalog', true)
             ->has('recentOrders', 0)
-            ->has('unpaidInvoices', 0)
             ->where('quickLinks', fn ($links) => collect($links)->contains('route', 'sales.overview')
                 && collect($links)->contains('route', 'sales.invoices.all')
                 && collect($links)->contains('route', 'sales.quotations.all'))
+        );
+    }
+
+    public function test_users_without_the_sales_manager_role_keep_the_owner_payload(): void
+    {
+        $tenant = $this->defaultTenant();
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->assignRole($user, $tenant, 'cashier', 'Cashier');
+        $this->makeOrder($tenant, 'SO-CONF', 'confirmed', '200.00', 'Confirmed Buyer', now());
+
+        $response = $this->actingAs($user)->get($this->dashboardUrl($tenant));
+
+        $response->assertOk();
+        $response->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Dashboard')
+            ->where('role', 'owner')
+            ->where('kpis.revenue', '200.00')
+            ->where('kpis.orders', 1)
+            ->missing('kpis.open_orders')
+            ->has('lowStockItems')
         );
     }
 
@@ -68,6 +90,7 @@ class SalesManagerDashboardTest extends TestCase
     {
         $tenant = $this->defaultTenant();
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->assignRole($user, $tenant, 'sales-manager', 'Sales Manager');
 
         $this->makeOrder($tenant, 'SO-CONF', 'confirmed', '200.00', 'Confirmed Buyer', now()->subHours(4));
         $this->makeOrder($tenant, 'SO-CONF-2', 'confirmed', '10.00', 'Second Confirmed', now()->subHours(3));
@@ -79,25 +102,45 @@ class SalesManagerDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('kpis.orders.draft', 1)
-            ->where('kpis.orders.pending', 1)
-            ->where('kpis.orders.confirmed', 2)
-            ->where('kpis.orders.cancelled', 1)
-            ->where('kpis.orders.open', 4)
+            ->where('kpis.draft', 1)
+            ->where('kpis.pending', 1)
+            ->where('kpis.confirmed', 2)
+            ->where('kpis.open_orders', 4)
             ->where('kpis.revenue', '210.00')
-            ->has('recentOrders', 5)
-            ->where('recentOrders.0.number', 'SO-CANCEL')
-            ->where('recentOrders', fn ($orders) => collect($orders)->contains('number', 'SO-DRAFT')
-                && collect($orders)->contains('number', 'SO-PEND')
-                && collect($orders)->contains('number', 'SO-CONF')
-                && collect($orders)->contains('number', 'SO-CONF-2'))
+            ->missing('kpis.cancelled')
+            ->has('recentOrders', 4)
+            ->where('recentOrders', function ($orders) {
+                $first = collect($orders->first());
+
+                return $orders->count() === 4
+                    && $first->get('number') === 'SO-PEND'
+                    && $first->get('status') === 'pending'
+                    && $first->get('status_label') === 'Pending'
+                    && $first->get('customer_name') === 'Pending Buyer'
+                    && $first->keys()->sort()->values()->all() === [
+                        'created_at',
+                        'currency',
+                        'customer_name',
+                        'grand_total',
+                        'id',
+                        'number',
+                        'status',
+                        'status_label',
+                    ]
+                    && $orders->contains('number', 'SO-CONF')
+                    && $orders->contains('number', 'SO-CONF-2')
+                    && $orders->contains('number', 'SO-DRAFT')
+                    && ! $orders->contains('number', 'SO-CANCEL')
+                    && ! $orders->contains('status', 'cancelled');
+            })
         );
     }
 
-    public function test_unpaid_invoices_count_due_partial_and_overdue_balances_only(): void
+    public function test_unpaid_ar_is_the_sales_report_amount_due_total(): void
     {
         $tenant = $this->defaultTenant();
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->assignRole($user, $tenant, 'sales_manager', 'Sales Manager Underscore');
 
         $this->makeInvoice($tenant, 'INV-DUE', 'due', '25.00', '25.00', 'Due Buyer', now()->addDays(10));
         $this->makeInvoice($tenant, 'INV-PART', 'partial', '100.00', '40.00', 'Partial Buyer', now()->addDays(10));
@@ -108,17 +151,8 @@ class SalesManagerDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('kpis.unpaid_invoices.due', 1)
-            ->where('kpis.unpaid_invoices.partial', 1)
-            ->where('kpis.unpaid_invoices.overdue', 1)
-            ->where('kpis.unpaid_invoices.paid', 1)
-            ->where('kpis.unpaid_invoices.count', 3)
-            ->where('kpis.unpaid_invoices.outstanding', '75.00')
-            ->has('unpaidInvoices', 3)
-            ->where('unpaidInvoices', fn ($invoices) => collect($invoices)->contains('number', 'INV-DUE')
-                && collect($invoices)->contains('number', 'INV-PART')
-                && collect($invoices)->contains('number', 'INV-LATE')
-                && ! collect($invoices)->contains('number', 'INV-PAID'))
+            ->where('role', 'sales_manager')
+            ->where('kpis.unpaid_ar', '75.00')
         );
     }
 
@@ -126,6 +160,7 @@ class SalesManagerDashboardTest extends TestCase
     {
         $tenant = $this->defaultTenant();
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->assignRole($user, $tenant, 'sales-manager', 'Sales Manager');
 
         $convertedOrder = $this->makeOrder($tenant, 'SO-FROM-QUOTE', 'draft', '30.00', 'Quoted Buyer', now());
         $this->makeQuotation($tenant, 'QT-CONVERTED', 'accepted', $convertedOrder->id);
@@ -136,11 +171,11 @@ class SalesManagerDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('kpis.conversion.total', 3)
-            ->where('kpis.conversion.converted', 1)
-            ->where('kpis.conversion.rate', '0.33')
+            ->where('kpis.quotation_conversion', fn ($value) => is_float($value) && abs($value - 0.3333) < 0.00001)
             ->where('kpis.revenue', '0.00')
-            ->where('kpis.orders.open', 1)
+            ->where('kpis.open_orders', 1)
+            ->where('kpis.draft', 1)
+            ->where('kpis.confirmed', 0)
         );
     }
 
@@ -160,10 +195,11 @@ class SalesManagerDashboardTest extends TestCase
         ]);
 
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->assignRole($user, $tenant, 'sales-manager', 'Sales Manager');
 
         $homeOrder = $this->makeOrder($tenant, 'SO-HOME', 'confirmed', '10.00', 'Home Buyer', now());
         $this->makeOrder($tenant, 'SO-HOME-DRAFT', 'draft', '5.00', 'Home Draft', now()->subMinute());
-        $this->makeOrder($tenant, 'SO-HOME-CANCEL', 'cancelled', '99.00', 'Home Cancel', now()->subMinutes(2));
+        $this->makeOrder($tenant, 'SO-HOME-CANCEL', 'cancelled', '99.00', 'Home Cancel', now());
         $this->makeInvoice($tenant, 'INV-HOME', 'due', '15.00', '15.00', 'Home Invoice', now()->addWeek());
         $this->makeInvoice($tenant, 'INV-HOME-PAID', 'paid', '400.00', '0.00', 'Home Paid', now()->addWeek());
         $this->makeQuotation($tenant, 'QT-HOME', 'accepted', $homeOrder->id);
@@ -181,22 +217,19 @@ class SalesManagerDashboardTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->where('kpis.revenue', '10.00')
-            ->where('kpis.orders.open', 2)
-            ->where('kpis.orders.cancelled', 1)
-            ->where('kpis.unpaid_invoices.count', 1)
-            ->where('kpis.unpaid_invoices.outstanding', '15.00')
-            ->where('kpis.conversion.total', 2)
-            ->where('kpis.conversion.converted', 1)
-            ->where('kpis.conversion.rate', '0.50')
-            ->where('recentOrders', fn ($orders) => collect($orders)->contains('number', 'SO-HOME')
-                && ! collect($orders)->contains('number', 'SO-OTHER'))
-            ->where('unpaidInvoices', fn ($invoices) => collect($invoices)->contains('number', 'INV-HOME')
-                && ! collect($invoices)->contains('number', 'INV-OTHER')
-                && ! collect($invoices)->contains('number', 'INV-HOME-PAID'))
+            ->where('kpis.open_orders', 2)
+            ->where('kpis.confirmed', 1)
+            ->where('kpis.draft', 1)
+            ->where('kpis.unpaid_ar', '15.00')
+            ->where('kpis.quotation_conversion', fn ($value) => is_float($value) && abs($value - 0.5) < 0.00001)
+            ->where('recentOrders', fn ($orders) => $orders->contains('number', 'SO-HOME')
+                && $orders->contains('number', 'SO-HOME-DRAFT')
+                && ! $orders->contains('number', 'SO-HOME-CANCEL')
+                && ! $orders->contains('number', 'SO-OTHER'))
         );
     }
 
-    public function test_disabled_sales_module_returns_zeros_and_empty_lists(): void
+    public function test_disabled_sales_module_returns_zeros_and_an_empty_list(): void
     {
         $tenant = $this->defaultTenant();
         TenantModuleOverride::query()->create([
@@ -206,6 +239,7 @@ class SalesManagerDashboardTest extends TestCase
         ]);
 
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $this->assignRole($user, $tenant, 'sales-manager', 'Sales Manager');
         $order = $this->makeOrder($tenant, 'SO-HIDDEN', 'confirmed', '500.00', 'Hidden Buyer', now());
         $this->makeInvoice($tenant, 'INV-HIDDEN', 'due', '80.00', '80.00', 'Hidden Invoice', now()->addWeek());
         $this->makeQuotation($tenant, 'QT-HIDDEN', 'accepted', $order->id);
@@ -214,18 +248,17 @@ class SalesManagerDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('SalesManagerDashboard')
-            ->where('available', false)
-            ->where('kpis.orders.open', 0)
-            ->where('kpis.orders.confirmed', 0)
+            ->component('Dashboard')
+            ->where('role', 'sales_manager')
+            ->where('modulesAvailable.sales', false)
             ->where('kpis.revenue', '0.00')
-            ->where('kpis.unpaid_invoices.count', 0)
-            ->where('kpis.unpaid_invoices.outstanding', '0.00')
-            ->where('kpis.conversion.total', 0)
-            ->where('kpis.conversion.converted', 0)
-            ->where('kpis.conversion.rate', null)
+            ->where('kpis.open_orders', 0)
+            ->where('kpis.draft', 0)
+            ->where('kpis.pending', 0)
+            ->where('kpis.confirmed', 0)
+            ->where('kpis.unpaid_ar', null)
+            ->where('kpis.quotation_conversion', null)
             ->has('recentOrders', 0)
-            ->has('unpaidInvoices', 0)
             ->has('quickLinks', 0)
         );
     }
@@ -242,12 +275,24 @@ class SalesManagerDashboardTest extends TestCase
             ->where('is_active', true)
             ->value('domain');
 
-        return 'http://'.$domain.'/admin/sales-manager';
+        return 'http://'.$domain.'/admin/dashboard';
     }
 
     private function useTenant(Tenant $tenant): void
     {
         app(TenantContext::class)->set($tenant);
+    }
+
+    private function assignRole(User $user, Tenant $tenant, string $slug, string $name): void
+    {
+        $this->useTenant($tenant);
+
+        $role = Role::query()->create([
+            'name' => $name,
+            'slug' => $slug,
+        ]);
+
+        $user->roles()->attach($role->id);
     }
 
     private function makeOrder(
