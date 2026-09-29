@@ -183,7 +183,7 @@ class PlanControllerTest extends TestCase
         $tenant = $this->shop('plan-read');
         $owner = $this->tenantUser($tenant, null, null);
         $free = $this->plan(PlanCode::Free);
-        $this->subscribe($tenant, $free);
+        $this->subscribe($tenant, $free, '2099-01-01', 'Manual invoice 42');
 
         $this->actingAs($owner)
             ->get($this->shopUrl($tenant, '/admin/billing/plans'))
@@ -193,6 +193,8 @@ class PlanControllerTest extends TestCase
                 ->where('subscription.plan_code', PlanCode::Free->value)
                 ->where('subscription.plan_name', 'Free')
                 ->where('subscription.status', SubscriptionStatus::Active->value)
+                ->where('subscription.ends_at', '2099-01-01')
+                ->where('subscription.payment_note', 'Manual invoice 42')
                 ->where('modules', function ($modules): bool {
                     $rows = collect($modules);
                     $sales = $rows->firstWhere('code', 'sales');
@@ -203,6 +205,28 @@ class PlanControllerTest extends TestCase
                         && is_array($crm)
                         && $crm['enabled'] === false;
                 })
+                ->where('enabledModules', fn ($codes) => collect($codes)->contains('sales')
+                    && ! collect($codes)->contains('crm'))
+            );
+    }
+
+    public function test_tenant_owner_reads_manual_billing_fields_from_the_shared_subscription(): void
+    {
+        $this->seedPlans();
+        $tenant = $this->shop('plan-share');
+        $owner = $this->tenantUser($tenant, null, null);
+        $free = $this->plan(PlanCode::Free);
+        $this->subscribe($tenant, $free, '2099-01-01', 'Manual invoice 42');
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/profile'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Profile/Edit')
+                ->where('subscription.plan_code', PlanCode::Free->value)
+                ->where('subscription.plan_name', 'Free')
+                ->where('subscription.ends_at', '2099-01-01')
+                ->where('subscription.payment_note', 'Manual invoice 42')
                 ->where('enabledModules', fn ($codes) => collect($codes)->contains('sales')
                     && ! collect($codes)->contains('crm'))
             );
@@ -277,13 +301,15 @@ class PlanControllerTest extends TestCase
         ]);
     }
 
-    private function subscribe(Tenant $tenant, Plan $plan): Subscription
+    private function subscribe(Tenant $tenant, Plan $plan, ?string $endsAt = null, ?string $paymentNote = null): Subscription
     {
         return Subscription::query()->create([
             'tenant_id' => $tenant->id,
             'plan_id' => $plan->id,
             'status' => SubscriptionStatus::Active,
             'starts_at' => '2026-01-01 00:00:00',
+            'ends_at' => $endsAt,
+            'payment_note' => $paymentNote,
         ]);
     }
 
