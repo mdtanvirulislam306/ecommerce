@@ -26,6 +26,8 @@ class PlanController extends Controller
                 'plan_name' => $subscription->plan?->name,
                 'plan_code' => $subscription->plan?->code,
                 'status' => $subscription->status->value,
+                'ends_at' => $subscription->ends_at?->toDateString(),
+                'payment_note' => $subscription->payment_note,
             ] : null,
         ]);
     }

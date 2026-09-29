@@ -69,6 +69,8 @@ class HandleInertiaRequests extends Middleware
                     return $sub ? [
                         'plan_name' => $sub->plan?->name,
                         'plan_code' => $sub->plan?->code,
+                        'ends_at' => $sub->ends_at?->toDateString(),
+                        'payment_note' => $sub->payment_note,
                     ] : null;
                 } catch (\Throwable) {
                     return null;
