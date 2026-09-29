@@ -40,11 +40,31 @@ function salesManagerCards() {
             key: 'open_orders',
             label: 'Open orders',
             value: props.kpis.open_orders,
-            hint: `${props.kpis.draft_orders} draft · ${props.kpis.pending_orders} pending`,
+            hint: 'Draft and pending only',
             route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
             query: {},
             accent: 'border-l-brand-teal',
             valueClass: 'text-brand-navy',
+        },
+        {
+            key: 'draft_orders',
+            label: 'Draft',
+            value: props.kpis.draft_orders,
+            hint: 'Not yet submitted',
+            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
+            query: { status: 'draft' },
+            accent: 'border-l-gray-300',
+            valueClass: 'text-gray-700',
+        },
+        {
+            key: 'pending_orders',
+            label: 'Pending',
+            value: props.kpis.pending_orders,
+            hint: 'Waiting to confirm',
+            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
+            query: { status: 'pending' },
+            accent: 'border-l-amber-500',
+            valueClass: 'text-amber-700',
         },
         {
             key: 'confirmed_orders',
@@ -144,13 +164,35 @@ function ownerCards() {
     ];
 }
 
-const heading = computed(() => (isSalesManager.value ? 'Sales Manager' : 'Owner overview'));
+const heading = computed(() => (isSalesManager.value ? 'Sales Manager overview' : 'Owner overview'));
 
 const intro = computed(() => (
     isSalesManager.value
-        ? 'Open orders, confirmed revenue, unpaid invoices, and quotation conversion.'
+        ? 'Open orders are draft and pending. Confirmed revenue is counted separately.'
         : 'Confirmed sales revenue, open orders, and stock that needs a reorder.'
 ));
+
+const ordersTitle = computed(() => (isSalesManager.value ? 'Recent open orders' : 'Recent orders'));
+
+const ordersSubtitle = computed(() => {
+    if (! isSalesManager.value) {
+        return 'Latest sales activity';
+    }
+
+    return props.modulesAvailable.sales ? 'Draft and pending only' : 'Sales is off';
+});
+
+const emptyOrdersMessage = computed(() => {
+    if (isSalesManager.value && ! props.modulesAvailable.sales) {
+        return 'Sales is not enabled for this shop.';
+    }
+
+    if (isSalesManager.value) {
+        return 'No open orders yet.';
+    }
+
+    return 'No orders yet.';
+});
 </script>
 
 <template>
@@ -192,9 +234,9 @@ const intro = computed(() => (
                 <section class="admin-card !p-0 overflow-hidden" :class="isSalesManager ? '' : 'lg:col-span-3'">
                     <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                         <div>
-                            <h2 class="text-sm font-semibold text-brand-navy">Recent orders</h2>
+                            <h2 class="text-sm font-semibold text-brand-navy">{{ ordersTitle }}</h2>
                             <p class="text-xs text-gray-400">
-                                {{ isSalesManager ? 'Draft and pending only' : 'Latest sales activity' }}
+                                {{ ordersSubtitle }}
                             </p>
                         </div>
                         <Link
@@ -220,11 +262,13 @@ const intro = computed(() => (
                                 <tr v-for="order in visibleOrders" :key="order.id" class="admin-data-table__row">
                                     <td class="admin-data-table__cell">
                                         <Link
+                                            v-if="!isSalesManager || modulesAvailable.sales"
                                             :href="route('sales.orders.show', order.id)"
                                             class="font-medium text-brand-navy hover:text-brand-orange"
                                         >
                                             {{ order.number }}
                                         </Link>
+                                        <span v-else class="font-medium text-brand-navy">{{ order.number }}</span>
                                     </td>
                                     <td class="admin-data-table__cell text-gray-600">{{ order.customer_name }}</td>
                                     <td class="admin-data-table__cell">
@@ -245,7 +289,7 @@ const intro = computed(() => (
                                 <tr v-if="!visibleOrders.length">
                                     <td colspan="5" class="px-5 py-12 text-center">
                                         <p class="text-sm text-gray-500">
-                                            {{ isSalesManager && !modulesAvailable.sales ? 'Orders are unavailable.' : 'No orders yet.' }}
+                                            {{ emptyOrdersMessage }}
                                         </p>
                                         <Link
                                             v-if="modulesAvailable.sales"
@@ -338,6 +382,12 @@ const intro = computed(() => (
                         </Link>
                     </li>
                 </ul>
+            </section>
+            <section v-else-if="isSalesManager" class="admin-card px-5 py-10 text-center">
+                <h2 class="text-sm font-semibold text-brand-navy">Shortcuts</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    {{ modulesAvailable.sales ? 'No sales shortcuts are available.' : 'Sales is not enabled for this shop.' }}
+                </p>
             </section>
         </div>
     </AdminLayout>
