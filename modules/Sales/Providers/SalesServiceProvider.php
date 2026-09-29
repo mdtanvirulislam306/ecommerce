@@ -2,9 +2,11 @@
 
 namespace Modules\Sales\Providers;
 
+use App\Core\Contracts\SalesManagerOverview;
 use App\Core\Contracts\SalesOverview;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Sales\Services\SalesManagerOverviewReader;
 use Modules\Sales\Services\SalesOverviewReader;
 
 class SalesServiceProvider extends ServiceProvider
@@ -13,6 +15,8 @@ class SalesServiceProvider extends ServiceProvider
     {
         $this->app->forgetInstance(SalesOverview::class);
         $this->app->singleton(SalesOverview::class, SalesOverviewReader::class);
+        $this->app->forgetInstance(SalesManagerOverview::class);
+        $this->app->singleton(SalesManagerOverview::class, SalesManagerOverviewReader::class);
     }
 
     public function boot(): void

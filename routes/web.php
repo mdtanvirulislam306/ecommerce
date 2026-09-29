@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SalesManagerDashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Modules\Accounting\Providers\AccountingServiceProvider;
@@ -34,6 +35,7 @@ Route::get('/', function () {
 Route::prefix('admin')->group(function () {
     Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/sales-manager', SalesManagerDashboardController::class)->name('sales-manager.dashboard');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

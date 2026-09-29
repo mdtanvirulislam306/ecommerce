@@ -37,7 +37,8 @@ See also: `.cursor/rules/agent-continue.mdc`.
 ### Admin role dashboards
 
 - [x] Owner overview: live revenue, orders, low stock, recent orders, alerts, and quick links
-- [ ] Sales Manager, Inventory, Accountant, and Ecommerce dashboards (Owner overview is the only role shipped)
+- [x] Sales Manager dashboard: open orders, confirmed revenue, outstanding invoices, quotation conversion
+- [ ] Inventory, Accountant, and Ecommerce dashboards
 
 ### Previously completed (archive)
 
