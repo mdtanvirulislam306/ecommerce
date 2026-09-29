@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Core\Module\ModuleManager;
-use App\Core\Services\SetupChecklistService;
 use App\Core\Support\ShopComplexity;
 use App\Core\Tenant\TenantContext;
 use Illuminate\Http\Request;
@@ -36,7 +35,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $shared = [
+        return [
             ...parent::share($request),
             'cartCount' => fn () => app(CartService::class)->count(),
             'tenant' => function () {
@@ -94,29 +93,5 @@ class HandleInertiaRequests extends Middleware
                 }
             },
         ];
-
-        if ($this->sharesSetupChecklist($request)) {
-            $shared['setupChecklist'] = fn (): array => app(SetupChecklistService::class)->forCurrentTenant();
-        }
-
-        return $shared;
-    }
-
-    /**
-     * Owner and shop-admin pages only. Sales Manager stays on its own dashboard payload.
-     */
-    private function sharesSetupChecklist(Request $request): bool
-    {
-        $user = $request->user();
-
-        if ($user === null || ! $request->is('admin', 'admin/*')) {
-            return false;
-        }
-
-        if ($user->isSalesManager()) {
-            return false;
-        }
-
-        return app(TenantContext::class)->check();
     }
 }

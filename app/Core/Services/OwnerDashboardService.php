@@ -27,6 +27,7 @@ final class OwnerDashboardService extends Service
         private readonly ModuleManager $modules,
         private readonly SalesOverview $sales,
         private readonly InventoryOverview $inventory,
+        private readonly SetupChecklistService $setupChecklist,
     ) {}
 
     /**
@@ -43,7 +44,16 @@ final class OwnerDashboardService extends Service
      *     modulesAvailable: array{sales: bool, inventory: bool, catalog: bool},
      *     recentOrders: list<array<string, mixed>>,
      *     lowStockItems: list<array<string, mixed>>,
-     *     quickLinks: list<array{label: string, description: string, route: string}>
+     *     quickLinks: list<array{label: string, description: string, route: string}>,
+     *     setupChecklist: array{
+     *         shop_name: bool,
+     *         business_profile: bool,
+     *         store_settings: bool,
+     *         payment_method: bool,
+     *         completed: bool,
+     *         progress: int,
+     *         setup_dismissed_at: string|null
+     *     }
      * }
      */
     public function forOwner(): array
@@ -80,6 +90,7 @@ final class OwnerDashboardService extends Service
                 ? $this->inventory->lowStockItems(self::LOW_STOCK_LIMIT)
                 : [],
             'quickLinks' => $this->quickLinks(),
+            'setupChecklist' => $this->setupChecklist->forCurrentTenant(),
         ];
     }
 

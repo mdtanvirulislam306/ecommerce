@@ -9,36 +9,21 @@ use Modules\Settings\Models\PaymentMethod;
 use Modules\Settings\Models\SettingValue;
 
 /**
- * First-run setup progress for shop owner admin pages.
+ * First-run setup progress for the owner dashboard.
  *
- * Flags read existing tenant rows only. Provisioned tenant name, billing
- * complexity flags, and unsaved form defaults do not count.
- *
- * shop_name is Settings general `shop_name`.
- * business_profile is any field saved by the business profile form.
- * store_settings is Ecommerce store settings `store_name`.
- * payment_method is at least one Settings payment method for this tenant.
+ * shop_name is the Settings General shop_name field, non-empty after trim.
+ * business_profile is a saved business payload whose company_name is non-empty.
+ * That update validates every field as optional, so company_name is the primary name.
+ * store_settings is Ecommerce store settings store_name, which that form requires.
+ * payment_method is at least one active Settings payment method.
+ * setup_dismissed_at does not change completed.
  */
 final class SetupChecklistService extends Service
 {
     /**
-     * Fields persisted by BusinessProfileController.
-     *
-     * @var list<string>
-     */
-    private const BUSINESS_PROFILE_KEYS = [
-        'company_name',
-        'legal_name',
-        'email',
-        'phone',
-        'address',
-        'tax_id',
-    ];
-
-    /**
      * Inertia `setupChecklist` for the tenant bound to the current request.
      *
-     * `progress` is an integer percent of the four flags (0, 25, 50, 75, 100).
+     * `progress` is how many of the four flags are true (0–4).
      * `completed` is true only when every flag is true.
      *
      * @return array{
@@ -47,13 +32,16 @@ final class SetupChecklistService extends Service
      *     store_settings: bool,
      *     payment_method: bool,
      *     completed: bool,
-     *     progress: int
+     *     progress: int,
+     *     setup_dismissed_at: string|null
      * }
      */
     public function forCurrentTenant(): array
     {
-        if (app(TenantContext::class)->id() === null) {
-            return $this->checklist(false, false, false, false);
+        $tenant = app(TenantContext::class)->get();
+
+        if ($tenant === null) {
+            return $this->checklist(false, false, false, false, null);
         }
 
         $settings = SettingValue::query()
@@ -61,7 +49,7 @@ final class SetupChecklistService extends Service
                 $query->where(function ($general): void {
                     $general->where('group', 'general')->where('key', 'shop_name');
                 })->orWhere(function ($business): void {
-                    $business->where('group', 'business')->whereIn('key', self::BUSINESS_PROFILE_KEYS);
+                    $business->where('group', 'business')->where('key', 'company_name');
                 });
             })
             ->get(['group', 'key', 'value']);
@@ -69,18 +57,17 @@ final class SetupChecklistService extends Service
         $shopName = $this->isFilled(
             $settings->first(fn (SettingValue $row): bool => $row->group === 'general' && $row->key === 'shop_name')?->value
         );
-
-        $businessProfile = $settings->contains(
-            fn (SettingValue $row): bool => $row->group === 'business' && $this->isFilled($row->value)
+        $businessProfile = $this->isFilled(
+            $settings->first(fn (SettingValue $row): bool => $row->group === 'business' && $row->key === 'company_name')?->value
         );
-
         $storeName = StoreSetting::query()->where('key', 'store_name')->value('value');
 
         return $this->checklist(
             $shopName,
             $businessProfile,
             $this->isFilled($storeName),
-            PaymentMethod::query()->exists(),
+            PaymentMethod::query()->where('is_active', true)->exists(),
+            $tenant->setup_dismissed_at?->toIso8601String(),
         );
     }
 
@@ -91,7 +78,8 @@ final class SetupChecklistService extends Service
      *     store_settings: bool,
      *     payment_method: bool,
      *     completed: bool,
-     *     progress: int
+     *     progress: int,
+     *     setup_dismissed_at: string|null
      * }
      */
     private function checklist(
@@ -99,6 +87,7 @@ final class SetupChecklistService extends Service
         bool $businessProfile,
         bool $storeSettings,
         bool $paymentMethod,
+        ?string $setupDismissedAt,
     ): array {
         $completedCount = (int) $shopName + (int) $businessProfile + (int) $storeSettings + (int) $paymentMethod;
 
@@ -108,7 +97,8 @@ final class SetupChecklistService extends Service
             'store_settings' => $storeSettings,
             'payment_method' => $paymentMethod,
             'completed' => $completedCount === 4,
-            'progress' => intdiv($completedCount * 100, 4),
+            'progress' => $completedCount,
+            'setup_dismissed_at' => $setupDismissedAt,
         ];
     }
 

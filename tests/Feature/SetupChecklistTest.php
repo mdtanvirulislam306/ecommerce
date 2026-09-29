@@ -42,7 +42,7 @@ class SetupChecklistTest extends TestCase
             );
     }
 
-    public function test_owner_profile_includes_the_setup_checklist(): void
+    public function test_owner_profile_omits_the_setup_checklist(): void
     {
         [$tenant, $owner] = $this->provisionShop('profile-shop');
 
@@ -51,7 +51,7 @@ class SetupChecklistTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Profile/Edit')
-                ->where('setupChecklist', $this->incompleteChecklist())
+                ->missing('setupChecklist')
             );
     }
 
@@ -65,14 +65,10 @@ class SetupChecklistTest extends TestCase
             ->get($this->shopUrl($tenant, '/admin/dashboard'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('setupChecklist', [
+                ->where('setupChecklist', $this->checklistWith([
                     'shop_name' => true,
-                    'business_profile' => false,
-                    'store_settings' => false,
-                    'payment_method' => false,
-                    'completed' => false,
-                    'progress' => 25,
-                ])
+                    'progress' => 1,
+                ]))
             );
     }
 
@@ -81,6 +77,31 @@ class SetupChecklistTest extends TestCase
         [$tenant, $owner] = $this->provisionShop('blank-name');
 
         $this->saveShopName($owner, $tenant, '   ');
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('setupChecklist', $this->incompleteChecklist())
+            );
+    }
+
+    public function test_business_profile_without_a_company_name_stays_incomplete(): void
+    {
+        [$tenant, $owner] = $this->provisionShop('tax-only');
+
+        $this->actingAs($owner)
+            ->from($this->shopUrl($tenant, '/admin/dashboard'))
+            ->put($this->shopUrl($tenant, '/admin/settings/business/company'), [
+                'company_name' => '',
+                'legal_name' => 'Legal Co',
+                'email' => 'owner@example.com',
+                'phone' => '01700000000',
+                'address' => 'Dhaka',
+                'tax_id' => 'BIN-9',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
         $this->actingAs($owner)
             ->get($this->shopUrl($tenant, '/admin/dashboard'))
@@ -100,14 +121,10 @@ class SetupChecklistTest extends TestCase
             ->get($this->shopUrl($tenant, '/admin/dashboard'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('setupChecklist', [
-                    'shop_name' => false,
+                ->where('setupChecklist', $this->checklistWith([
                     'business_profile' => true,
-                    'store_settings' => false,
-                    'payment_method' => false,
-                    'completed' => false,
-                    'progress' => 25,
-                ])
+                    'progress' => 1,
+                ]))
             );
     }
 
@@ -121,14 +138,10 @@ class SetupChecklistTest extends TestCase
             ->get($this->shopUrl($tenant, '/admin/dashboard'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('setupChecklist', [
-                    'shop_name' => false,
-                    'business_profile' => false,
+                ->where('setupChecklist', $this->checklistWith([
                     'store_settings' => true,
-                    'payment_method' => false,
-                    'completed' => false,
-                    'progress' => 25,
-                ])
+                    'progress' => 1,
+                ]))
             );
     }
 
@@ -154,6 +167,26 @@ class SetupChecklistTest extends TestCase
             );
     }
 
+    public function test_inactive_payment_method_does_not_complete_that_checklist_item(): void
+    {
+        [$tenant, $owner] = $this->provisionShop('inactive-pay');
+
+        $this->savePaymentMethod($owner, $tenant, 'cod', false);
+
+        $this->assertDatabaseHas('payment_methods', [
+            'tenant_id' => $tenant->id,
+            'code' => 'cod',
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('setupChecklist', $this->incompleteChecklist())
+            );
+    }
+
     public function test_configured_payment_method_marks_that_checklist_item_complete(): void
     {
         [$tenant, $owner] = $this->provisionShop('payments');
@@ -164,14 +197,10 @@ class SetupChecklistTest extends TestCase
             ->get($this->shopUrl($tenant, '/admin/dashboard'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('setupChecklist', [
-                    'shop_name' => false,
-                    'business_profile' => false,
-                    'store_settings' => false,
+                ->where('setupChecklist', $this->checklistWith([
                     'payment_method' => true,
-                    'completed' => false,
-                    'progress' => 25,
-                ])
+                    'progress' => 1,
+                ]))
             );
     }
 
@@ -188,14 +217,29 @@ class SetupChecklistTest extends TestCase
             ->get($this->shopUrl($tenant, '/admin/dashboard'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('setupChecklist', [
+                ->where('setupChecklist', $this->checklistWith([
                     'shop_name' => true,
                     'business_profile' => true,
                     'store_settings' => true,
                     'payment_method' => true,
                     'completed' => true,
-                    'progress' => 100,
-                ])
+                    'progress' => 4,
+                ]))
+            );
+    }
+
+    public function test_dismissing_the_checklist_does_not_mark_it_complete(): void
+    {
+        [$tenant, $owner] = $this->provisionShop('dismissed-shop');
+        $tenant->update(['setup_dismissed_at' => '2026-09-29 12:00:00']);
+
+        $this->actingAs($owner)
+            ->get($this->shopUrl($tenant, '/admin/dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('setupChecklist', $this->checklistWith([
+                    'setup_dismissed_at' => '2026-09-29T12:00:00+06:00',
+                ]))
             );
     }
 
@@ -367,14 +411,14 @@ class SetupChecklistTest extends TestCase
             ->assertSessionHasNoErrors();
     }
 
-    private function savePaymentMethod(User $owner, Tenant $tenant, string $code): void
+    private function savePaymentMethod(User $owner, Tenant $tenant, string $code, bool $isActive = true): void
     {
         $this->actingAs($owner)
             ->from($this->shopUrl($tenant, '/admin/dashboard'))
             ->post($this->shopUrl($tenant, '/admin/settings/payment-methods'), [
                 'name' => 'Cash on Delivery',
                 'code' => $code,
-                'is_active' => true,
+                'is_active' => $isActive ? 1 : 0,
             ])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
@@ -391,13 +435,31 @@ class SetupChecklistTest extends TestCase
     }
 
     /**
+     * @param  array<string, mixed>  $overrides
      * @return array{
      *     shop_name: bool,
      *     business_profile: bool,
      *     store_settings: bool,
      *     payment_method: bool,
      *     completed: bool,
-     *     progress: int
+     *     progress: int,
+     *     setup_dismissed_at: string|null
+     * }
+     */
+    private function checklistWith(array $overrides): array
+    {
+        return array_replace($this->incompleteChecklist(), $overrides);
+    }
+
+    /**
+     * @return array{
+     *     shop_name: bool,
+     *     business_profile: bool,
+     *     store_settings: bool,
+     *     payment_method: bool,
+     *     completed: bool,
+     *     progress: int,
+     *     setup_dismissed_at: string|null
      * }
      */
     private function incompleteChecklist(): array
@@ -409,6 +471,7 @@ class SetupChecklistTest extends TestCase
             'payment_method' => false,
             'completed' => false,
             'progress' => 0,
+            'setup_dismissed_at' => null,
         ];
     }
 }
