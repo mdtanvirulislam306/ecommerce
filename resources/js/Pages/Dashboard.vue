@@ -1,4 +1,5 @@
 <script setup>
+import SetupChecklist from '@/Components/Admin/SetupChecklist.vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { formatDateTime } from '@/utils/formatDateTime';
 import { Head, Link, usePage } from '@inertiajs/vue3';
@@ -16,6 +17,7 @@ const props = defineProps({
     recentOpenOrders: { type: Array, default: () => [] },
     lowStockItems: { type: Array, default: () => [] },
     quickLinks: { type: Array, default: () => [] },
+    setupChecklist: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -214,6 +216,8 @@ const emptyOrdersMessage = computed(() => {
                     Sales is not enabled for this shop. Order, invoice, and quotation figures are unavailable.
                 </p>
             </div>
+
+            <SetupChecklist v-if="!isSalesManager" :checklist="setupChecklist" />
 
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <component
