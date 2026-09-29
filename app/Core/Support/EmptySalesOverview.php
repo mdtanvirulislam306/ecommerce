@@ -25,4 +25,19 @@ final class EmptySalesOverview implements SalesOverview
     {
         return [];
     }
+
+    public function recentOpenOrders(int $limit = 6): array
+    {
+        return [];
+    }
+
+    public function unpaidInvoiceCount(): ?int
+    {
+        return null;
+    }
+
+    public function quotationConversionRate(): ?string
+    {
+        return null;
+    }
 }

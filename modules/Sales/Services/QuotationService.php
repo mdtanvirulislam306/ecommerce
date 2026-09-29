@@ -261,6 +261,25 @@ class QuotationService extends Service
     }
 
     /**
+     * Quotations converted to an order (`sales_order_id` set by convertToOrder).
+     *
+     * `rate` is converted / total, four decimal places, from 0 to 1. Null when no quotations exist.
+     *
+     * @return array{total: int, converted: int, rate: float|null}
+     */
+    public function conversionStats(): array
+    {
+        $total = (int) SalesQuotation::query()->count();
+        $converted = (int) SalesQuotation::query()->whereNotNull('sales_order_id')->count();
+
+        return [
+            'total' => $total,
+            'converted' => $converted,
+            'rate' => $total === 0 ? null : round($converted / $total, 4),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function formatForDetail(SalesQuotation $quotation): array

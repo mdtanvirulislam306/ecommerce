@@ -9,7 +9,11 @@ use App\Core\Contracts\SalesOverview;
  */
 final class SalesOverviewReader implements SalesOverview
 {
-    public function __construct(private readonly SalesOrderService $orders) {}
+    public function __construct(
+        private readonly SalesOrderService $orders,
+        private readonly SalesReportService $reports,
+        private readonly QuotationService $quotations,
+    ) {}
 
     /**
      * Open orders are draft, pending, and confirmed. Cancelled stays on the Sales overview card only.
@@ -33,5 +37,28 @@ final class SalesOverviewReader implements SalesOverview
             0,
             $limit,
         ));
+    }
+
+    public function recentOpenOrders(int $limit = 6): array
+    {
+        return $this->orders->recentOpenOrders($limit);
+    }
+
+    public function unpaidInvoiceCount(): ?int
+    {
+        $invoices = $this->reports->overview()['invoices'];
+
+        return $invoices['due'] + $invoices['partial'] + $invoices['overdue'];
+    }
+
+    public function quotationConversionRate(): ?string
+    {
+        $stats = $this->quotations->conversionStats();
+
+        if ($stats['total'] === 0) {
+            return null;
+        }
+
+        return round(($stats['converted'] / $stats['total']) * 100).'%';
     }
 }

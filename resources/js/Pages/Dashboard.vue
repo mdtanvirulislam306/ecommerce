@@ -5,14 +5,15 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 /**
- * Owner overview only. Sales Manager, Inventory, Accountant, and Ecommerce
- * dashboards should replace this payload later without a new admin shell.
+ * Admin home. `role` selects the payload: `owner` or `sales_manager`.
+ * Inventory, Accountant, and Ecommerce dashboards are later roles.
  */
 const props = defineProps({
     role: { type: String, default: 'owner' },
     kpis: { type: Object, required: true },
     modulesAvailable: { type: Object, required: true },
     recentOrders: { type: Array, default: () => [] },
+    recentOpenOrders: { type: Array, default: () => [] },
     lowStockItems: { type: Array, default: () => [] },
     quickLinks: { type: Array, default: () => [] },
 });
@@ -27,7 +28,77 @@ const statusMeta = {
     cancelled: { class: 'bg-red-50 text-red-700' },
 };
 
-const kpiCards = computed(() => [
+const isSalesManager = computed(() => props.role === 'sales_manager');
+
+const kpiCards = computed(() => isSalesManager.value ? salesManagerCards() : ownerCards());
+
+const visibleOrders = computed(() => (isSalesManager.value ? props.recentOpenOrders : props.recentOrders));
+
+function salesManagerCards() {
+    const cards = [
+        {
+            key: 'open_orders',
+            label: 'Open orders',
+            value: props.kpis.open_orders,
+            hint: `${props.kpis.draft_orders} draft · ${props.kpis.pending_orders} pending`,
+            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
+            query: {},
+            accent: 'border-l-brand-teal',
+            valueClass: 'text-brand-navy',
+        },
+        {
+            key: 'confirmed_orders',
+            label: 'Confirmed',
+            value: props.kpis.confirmed_orders,
+            hint: 'Stock fulfilled',
+            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
+            query: { status: 'confirmed' },
+            accent: 'border-l-emerald-500',
+            valueClass: 'text-emerald-700',
+        },
+        {
+            key: 'revenue',
+            label: 'Revenue',
+            value: props.kpis.revenue,
+            hint: 'Confirmed order totals',
+            route: props.modulesAvailable.sales ? 'sales.orders.all' : null,
+            query: { status: 'confirmed' },
+            accent: 'border-l-brand-navy',
+            valueClass: 'text-brand-navy',
+        },
+    ];
+
+    if (props.kpis.unpaid_invoices != null) {
+        cards.push({
+            key: 'unpaid_invoices',
+            label: 'Unpaid invoices',
+            value: props.kpis.unpaid_invoices,
+            hint: 'Due, partial, and overdue',
+            route: props.modulesAvailable.sales ? 'sales.invoices.all' : null,
+            query: {},
+            accent: 'border-l-amber-500',
+            valueClass: 'text-amber-700',
+        });
+    }
+
+    if (props.kpis.quotation_conversion_rate != null) {
+        cards.push({
+            key: 'quotation_conversion_rate',
+            label: 'Quote conversion',
+            value: props.kpis.quotation_conversion_rate,
+            hint: 'Quotations linked to an order',
+            route: props.modulesAvailable.sales ? 'sales.quotations.all' : null,
+            query: {},
+            accent: 'border-l-brand-teal',
+            valueClass: 'text-brand-teal-dark',
+        });
+    }
+
+    return cards;
+}
+
+function ownerCards() {
+    return [
     {
         key: 'revenue',
         label: 'Revenue',
@@ -70,9 +141,16 @@ const kpiCards = computed(() => [
         accent: 'border-l-brand-teal',
         valueClass: 'text-brand-teal-dark',
     },
-]);
+    ];
+}
 
-const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Overview'));
+const heading = computed(() => (isSalesManager.value ? 'Sales Manager' : 'Owner overview'));
+
+const intro = computed(() => (
+    isSalesManager.value
+        ? 'Open orders, confirmed revenue, unpaid invoices, and quotation conversion.'
+        : 'Confirmed sales revenue, open orders, and stock that needs a reorder.'
+));
 </script>
 
 <template>
@@ -84,7 +162,14 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                 <p class="text-sm text-gray-500">Welcome back, {{ user?.name }}</p>
                 <h2 class="mt-1 text-xl font-semibold text-brand-navy">{{ heading }}</h2>
                 <p class="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
-                    Confirmed sales revenue, open orders, and stock that needs a reorder.
+                    {{ intro }}
+                </p>
+                <p
+                    v-if="isSalesManager && !modulesAvailable.sales"
+                    class="mt-3 text-sm text-amber-800"
+                    data-sales-unavailable
+                >
+                    Sales is not enabled for this shop. Order, invoice, and quotation figures are unavailable.
                 </p>
             </div>
 
@@ -103,12 +188,14 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                 </component>
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-5">
-                <section class="admin-card !p-0 overflow-hidden lg:col-span-3">
+            <div class="grid gap-6" :class="isSalesManager ? '' : 'lg:grid-cols-5'">
+                <section class="admin-card !p-0 overflow-hidden" :class="isSalesManager ? '' : 'lg:col-span-3'">
                     <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                         <div>
                             <h2 class="text-sm font-semibold text-brand-navy">Recent orders</h2>
-                            <p class="text-xs text-gray-400">Latest sales activity</p>
+                            <p class="text-xs text-gray-400">
+                                {{ isSalesManager ? 'Draft and pending only' : 'Latest sales activity' }}
+                            </p>
                         </div>
                         <Link
                             v-if="modulesAvailable.sales"
@@ -130,7 +217,7 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="order in recentOrders" :key="order.id" class="admin-data-table__row">
+                                <tr v-for="order in visibleOrders" :key="order.id" class="admin-data-table__row">
                                     <td class="admin-data-table__cell">
                                         <Link
                                             :href="route('sales.orders.show', order.id)"
@@ -155,9 +242,11 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                                         {{ formatDateTime(order.created_at) }}
                                     </td>
                                 </tr>
-                                <tr v-if="!recentOrders.length">
+                                <tr v-if="!visibleOrders.length">
                                     <td colspan="5" class="px-5 py-12 text-center">
-                                        <p class="text-sm text-gray-500">No orders yet.</p>
+                                        <p class="text-sm text-gray-500">
+                                            {{ isSalesManager && !modulesAvailable.sales ? 'Orders are unavailable.' : 'No orders yet.' }}
+                                        </p>
                                         <Link
                                             v-if="modulesAvailable.sales"
                                             :href="route('sales.orders.create')"
@@ -172,7 +261,7 @@ const heading = computed(() => (props.role === 'owner' ? 'Owner overview' : 'Ove
                     </div>
                 </section>
 
-                <section class="admin-card !p-0 overflow-hidden lg:col-span-2">
+                <section v-if="!isSalesManager" class="admin-card !p-0 overflow-hidden lg:col-span-2">
                     <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                         <div>
                             <h2 class="text-sm font-semibold text-brand-navy">Low stock</h2>
