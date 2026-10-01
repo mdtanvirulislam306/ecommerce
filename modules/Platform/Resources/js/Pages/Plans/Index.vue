@@ -42,7 +42,7 @@ const confirmDelete = () => {
 </script>
 
 <template>
-    <PlatformShell title="Plans">
+    <PlatformShell title="Plans" full-width>
         <div v-if="planError" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">{{ planError }}</div>
 
         <section class="flex flex-col gap-4 rounded-2xl bg-brand-navy p-6 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -68,7 +68,7 @@ const confirmDelete = () => {
             <p class="mt-1 text-sm text-gray-500">Create your first plan to start provisioning shops.</p>
         </div>
 
-        <div v-else class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div v-else class="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             <article
                 v-for="plan in plans"
                 :key="plan.id"

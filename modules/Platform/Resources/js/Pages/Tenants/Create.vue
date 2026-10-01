@@ -34,12 +34,12 @@ const submit = () => form.post(route('platform.tenants.store'));
 </script>
 
 <template>
-    <PlatformShell title="New shop">
+    <PlatformShell title="New shop" full-width>
         <div>
             <Link :href="route('platform.tenants.index')" class="text-sm font-medium text-brand-navy hover:text-brand-orange">← All shops</Link>
         </div>
 
-        <form class="mx-auto max-w-3xl space-y-5" @submit.prevent="submit">
+        <form class="w-full space-y-5" @submit.prevent="submit">
             <section class="admin-card space-y-4">
                 <h2 class="text-sm font-semibold text-brand-navy">Shop</h2>
                 <div>
@@ -106,7 +106,7 @@ const submit = () => form.post(route('platform.tenants.store'));
                 </div>
                 <div>
                     <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Module overrides (optional)</p>
-                    <div class="grid gap-2 sm:grid-cols-2">
+                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         <label v-for="mod in nonCoreModules" :key="mod.code" class="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm">
                             <input v-model="form.module_overrides[mod.code]" type="checkbox" class="rounded border-gray-300 text-brand-orange" />
                             <span>{{ mod.name }}</span>

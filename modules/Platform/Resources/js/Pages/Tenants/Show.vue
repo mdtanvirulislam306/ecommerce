@@ -55,7 +55,7 @@ const formatWhen = (iso) =>
 </script>
 
 <template>
-    <PlatformShell :title="tenant.name">
+    <PlatformShell :title="tenant.name" full-width>
         <div v-if="impersonationError" class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
             {{ impersonationError }}
         </div>

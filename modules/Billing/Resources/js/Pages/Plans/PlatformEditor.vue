@@ -23,7 +23,7 @@ const price = (plan) => (plan.price_monthly ? `${formatMoney(plan.price_monthly 
 </script>
 
 <template>
-    <div class="max-w-5xl space-y-6">
+    <div class="w-full space-y-6">
         <div v-if="flash?.success" class="rounded-xl bg-brand-teal/10 px-4 py-3 text-sm text-brand-navy ring-1 ring-brand-teal/20">
             {{ flash.success }}
         </div>

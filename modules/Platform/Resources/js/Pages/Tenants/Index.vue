@@ -49,7 +49,7 @@ const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-BD', { d
 </script>
 
 <template>
-    <PlatformShell title="Shops">
+    <PlatformShell title="Shops" full-width>
         <section class="flex flex-col gap-4 rounded-2xl bg-brand-navy p-6 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h1 class="text-lg font-semibold">Shops</h1>

@@ -59,7 +59,7 @@ const planLabel = (plan) => `${plan.name} · ${plan.price_monthly ? `${formatMon
 </script>
 
 <template>
-    <PlatformShell title="Settings">
+    <PlatformShell title="Settings" full-width>
         <div
             v-if="settings.maintenance_enabled"
             class="flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200"

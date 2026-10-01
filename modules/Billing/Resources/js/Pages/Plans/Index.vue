@@ -54,7 +54,7 @@ function upgradeHref(mod) {
             :subscription="subscription"
         />
 
-        <div v-else class="max-w-4xl space-y-4">
+        <div v-else class="w-full space-y-4">
             <section class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-wide text-brand-orange">Current plan</p>
                 <template v-if="subscription">

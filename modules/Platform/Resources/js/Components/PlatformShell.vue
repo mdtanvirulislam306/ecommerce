@@ -5,6 +5,7 @@ import { computed } from 'vue';
 
 defineProps({
     title: { type: String, required: true },
+    fullWidth: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -22,7 +23,7 @@ const tabs = [
 <template>
     <Head :title="`Platform · ${title}`" />
     <AdminLayout :title="`Platform · ${title}`">
-        <div class="mx-auto max-w-7xl space-y-6">
+        <div class="space-y-6" :class="fullWidth ? 'w-full' : 'mx-auto max-w-7xl'">
             <nav class="-mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-gray-100 bg-white p-1.5 shadow-sm" aria-label="Platform console">
                 <Link
                     v-for="tab in tabs"

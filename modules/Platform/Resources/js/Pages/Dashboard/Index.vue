@@ -66,7 +66,7 @@ const maxRecentOrders = computed(() => Math.max(...props.usage.map((row) => row.
 </script>
 
 <template>
-    <PlatformShell title="Overview">
+    <PlatformShell title="Overview" full-width>
         <section class="relative overflow-hidden rounded-2xl bg-brand-navy p-6 text-white shadow-sm sm:p-8">
             <div class="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-teal/20 blur-3xl" />
             <div class="pointer-events-none absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-brand-orange/20 blur-3xl" />
